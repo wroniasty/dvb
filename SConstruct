@@ -10,6 +10,6 @@ env['CPPFLAGS'].append ( '-I' + os.getcwd() + '/src' )
 env['LIBPATH'] =  [os.getcwd() + '/build' ]
 
 print os.getcwd() + '/src/'
-env.SConscript ('src/SConscript', variant_dir='build', exports=['env', 'conf'])
-env.SConscript ('test/SConscript', exports=['env', 'conf'])
+env.SConscript ('src/SConscript', variant_dir='build/main', exports=['env', 'conf'])
+env.SConscript ('test/SConscript', variant_dir='build/test', exports=['env', 'conf'])
 

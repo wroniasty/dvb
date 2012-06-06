@@ -11,5 +11,9 @@
 *.la
 *.a
 
-build
+build/*
+.scon*
 *~
+/nbproject/private/
+/.sconf_temp/
+config.log
