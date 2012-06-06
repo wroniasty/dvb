@@ -1,0 +1,6 @@
+Import ('env')
+
+env.Library('dvb', ['mpegts.cpp', 'sections.cpp', 'descriptors.cpp', 'analyzer.cpp'])
+
+env.Program('mpegts-xmit.cpp', LIBS=['dvb', 'bits', 'PocoFoundation', 'PocoNet', 'PocoUtil'], LIBPATH='.')
+

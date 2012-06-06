@@ -1,0 +1,4 @@
+Import ('env')
+
+env.Program('mpegts-test.cpp', LIBS=['dvb', 'bits', 'cpptest', 'PocoFoundation', 'PocoNet'])
+
