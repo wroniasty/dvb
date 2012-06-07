@@ -30,10 +30,9 @@ namespace mpeg {
     if ( (in_filter && (filter_mode == FILTER_BLOCK)) || (!in_filter && (filter_mode == FILTER_ALLOW)) )
         return;
 
-
     if (puN->PID == PAT_PID) {
-        dvb::si::pat_section pat; pat.read(*buffer);
-        if (pat.is_valid()) {
+        dvb::si::pat_section pat; 
+        if ((pat.read(*buffer) == dvb::si::SECTION_OK) && pat.is_valid()) {
             for ( dvb::si::pat_section::programs_v::iterator it = pat.programs.begin(); it != pat.programs.end(); it++ ) {
                 pmt_pids[(*it)->program_map_pid] = (*it)->program_number;
                 if (filter_mode == FILTER_ALLOW && collect_pmt) add_pid_to_filter((*it)->program_map_pid);
@@ -43,7 +42,7 @@ namespace mpeg {
         dvb::si::eit_section eit; eit.read (*buffer);
     } else if (puN->PID == SDT_PID) {
     } else if ( collect_pmt && pmt_pids.count(puN->PID)  ) {
-        dvb::si::pmt_section pmt; pmt.read (*buffer);
+     //   dvb::si::pmt_section pmt; pmt.read (*buffer);
     }
 
   }

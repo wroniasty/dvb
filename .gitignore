@@ -12,6 +12,7 @@
 *.a
 
 build/*
+data/*
 .scon*
 *~
 /nbproject/private/

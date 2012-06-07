@@ -4,5 +4,6 @@
 #include "mpegts.h"
 #include "descriptors.h"
 #include "sections.h"
+#include "analyzer.h"
 
 #endif

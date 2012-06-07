@@ -7,7 +7,7 @@ env['CPPDEFINES'] = []
 env['CPPFLAGS'] = [ '-g'  ]
 
 env['CPPFLAGS'].append ( '-I' + os.getcwd() + '/src' )
-env['LIBPATH'] =  [os.getcwd() + '/build' ]
+env['LIBPATH'] =  [os.getcwd() + '/build', os.getcwd() + '/build/main' ]
 
 print os.getcwd() + '/src/'
 env.SConscript ('src/SConscript', variant_dir='build/main', exports=['env', 'conf'])

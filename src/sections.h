@@ -1,6 +1,7 @@
 #ifndef _DVB_SECTIONS_
 #define _DVB_SECTIONS_ 1
 
+#include <boost/crc.hpp>
 #include "bits/bits-stream.h"
 #include "mpegts.h"
 #include "descriptors.h"
@@ -13,6 +14,15 @@ namespace si {
 
   typedef std::vector< Poco::SharedPtr < dvb::si::descriptor > > descriptors_v;
 
+  unsigned peek_table_id (bits::bitstream & source);
+  unsigned peek_table_id (std::vector<unsigned char> & buffer);
+    
+  
+  typedef enum { 
+      SECTION_OK=0,
+      SECTION_ALIGNMENT_ERROR,
+      SECTION_CRC_ERROR } section_status;
+
   class section {
 
   protected:
@@ -20,20 +30,31 @@ namespace si {
     virtual void read_contents (bits::bitstream & source);
     virtual void write_header (bits::bitstream & dest);
     virtual void write_contents (bits::bitstream & dest);
+    virtual bool check_validity();
+    bool _valid, _check_crc;
+    int _read_section_offset, 
+        _read_offset_0,
+        _write_section_offset,
+        _write_offset_0;
+    
   public:
     unsigned table_id;
     unsigned section_syntax_indicator;
     unsigned section_length;
-
+    unsigned crc32;
+    
     section ();
 
-    void read (bits::bitstream & source);
-    void read (std::vector<unsigned char> & buffer);
+    int read (bits::bitstream & source);
+    int read (std::vector<unsigned char> & buffer);
 
     void write (bits::bitstream & destination);
 
+    unsigned peek_section_length(bits::bitstream & source);
+    
     unsigned get_section_length();
     bool is_valid();
+
   };
 
   class pat_section : public section {
@@ -55,6 +76,33 @@ namespace si {
      unsigned section_number;
      unsigned last_section_number;
 
+  };
+
+  class nit_section : public section {
+     protected:
+
+     virtual void read_contents (bits::bitstream & source);
+     virtual void write_contents (bits::bitstream & dest);
+
+     public:
+
+     typedef struct {
+        unsigned transport_stream_id;
+        unsigned original_network_id;
+        descriptors_v descriptors;
+     } transport_stream;
+     typedef std::vector<Poco::SharedPtr<transport_stream> > transport_stream_v;
+
+     transport_stream_v transport_streams;
+
+     unsigned network_id;
+     unsigned version_number;
+     unsigned current_next_indicator;
+     unsigned section_number;
+     unsigned last_section_number;
+     
+     descriptors_v network_descriptors;
+     
   };
 
   class pmt_section : public section {

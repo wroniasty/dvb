@@ -2,6 +2,24 @@
 <configurationDescriptor version="80">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
     <df name="dvb" root=".">
+      <df name="build">
+        <df name="main">
+          <in>analyzer.cpp</in>
+          <in>analyzer.h</in>
+          <in>descriptors.cpp</in>
+          <in>descriptors.h</in>
+          <in>mpegts-xmit.cpp</in>
+          <in>mpegts.cpp</in>
+          <in>mpegts.h</in>
+          <in>sections.cpp</in>
+          <in>sections.h</in>
+        </df>
+        <df name="test">
+          <in>mpegts-test.cpp</in>
+        </df>
+      </df>
+      <df name="data">
+      </df>
       <df name="src">
         <in>analyzer.cpp</in>
         <in>analyzer.h</in>
@@ -41,7 +59,7 @@
           <buildCommandWorkingDir>.</buildCommandWorkingDir>
           <buildCommand>${MAKE} -f Makefile</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
-          <executablePath></executablePath>
+          <executablePath>test/mpegts-test</executablePath>
         </makeTool>
       </makefileType>
     </conf>

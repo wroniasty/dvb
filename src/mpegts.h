@@ -5,6 +5,8 @@
 #include <map>
 #include <set>
 
+#include <boost/crc.hpp>
+
 #include "Poco/NotificationCenter.h"
 #include "Poco/Notification.h"
 #include "Poco/Observer.h"
@@ -25,7 +27,8 @@ using namespace std;
 namespace dvb {
 
 namespace mpeg {
-
+  
+  typedef boost::crc_optimal<32, 0x04C11DB7, 0xffffffff, 0x0, false, false> crc32_mpeg;
 
   class packet {
   public:
@@ -90,8 +93,9 @@ namespace mpeg {
       payload_unit_ready ( Poco::SharedPtr<vector<unsigned char> > payloadbuffer, unsigned PID );
     };
 
-    stream & operator<< (bits::bitstream & stream);
-    stream & operator<< (unsigned char * buffer);
+    unsigned operator<< (bits::bitstream & stream);
+    unsigned operator<< (unsigned char * buffer);
+    unsigned operator<< (std::vector<unsigned char> & buffer);
 
   };
 

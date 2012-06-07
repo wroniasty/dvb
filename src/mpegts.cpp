@@ -31,6 +31,7 @@ namespace mpeg {
   }
 
   int packet::read(bits::bitstream & stream) {
+    unsigned off0 = stream.position();
     valid =  stream.read<unsigned>(8) == 0x47;
 
     TEI = stream.read<unsigned>(1);
@@ -66,7 +67,7 @@ namespace mpeg {
     } else {
       payloadSize = 0;
     }
-    return valid;
+    return (stream.position() - off0);
   }
 
   int packet::write(unsigned char *buffer, std::size_t max_size) {
@@ -110,12 +111,17 @@ namespace mpeg {
     Poco::Notification(), buffer(payloadbuffer), PID(_PID) {
   }
 
-  stream & stream::operator<< (unsigned char * buffer) {
+  unsigned stream::operator<< (unsigned char * buffer) {
     bits::bitstream input(buffer);
-    (*this) << input;
+    return (*this) << input;
   }
 
-  stream & stream::operator<< (bits::bitstream & input) {
+  unsigned stream::operator<< (std::vector<unsigned char> & buffer) {
+      assert(buffer.size() >= MPEG_PACKET_SIZE);
+      return (*this) << &buffer[0];
+  }
+
+  unsigned stream::operator<< (bits::bitstream & input) {
     p.read (input);
     if (!p.null && p.valid) {
       Poco::SharedPtr <vector<unsigned char> > buffer = partial_payload_units[p.PID];

@@ -36,6 +36,9 @@ public:
     TEST_ADD(MpegTestSuite::packet_random_test);
     TEST_ADD(MpegTestSuite::stream_random_test);
     TEST_ADD(MpegTestSuite::stream_data_test);
+    TEST_ADD(MpegTestSuite::analyzer_data_test);
+    TEST_ADD(MpegTestSuite::sections_test);
+    TEST_ADD(MpegTestSuite::descriptors_test);
   }
 
 protected:
@@ -69,27 +72,18 @@ private:
 
   void handle_payload_unit (const Poco::AutoPtr<mpeg::stream::payload_unit_ready> & puN) {
     Poco::SharedPtr < vector<unsigned char> > buffer(puN->buffer);
-    cout << "Payload unit received PID = " << puN->PID << " size:" << buffer->size() << endl;
+    
     if (puN->PID == 0) {
         dvb::si::pat_section pat; pat.read(*buffer);
-        cout << "PAT " << pat.table_id << " lgt:" << pat.section_length << " [";
-        for ( dvb::si::pat_section::programs_v::iterator it = pat.programs.begin(); it != pat.programs.end(); it++ ) {
-//            cout << (*it)->program_number << "<=>pid:" << (*it)->program_map_pid << " | ";
-        }
-        cout << "]" << endl;
+        //for ( dvb::si::pat_section::programs_v::iterator it = pat.programs.begin(); it != pat.programs.end(); it++ ) {
+        //}
     } else if (puN->PID == 0x12) {
         dvb::si::eit_section eit; eit.read (*buffer);
-        cout << "EIT " << eit.table_id << " lgt:" << eit.section_length << " [";
-        for (dvb::si::eit_section::events_v::iterator it = eit.events.begin(); it != eit.events.end(); it++) {
-            cout << "event_id:" << (*it)->event_id << " " ;
-            for (dvb::si::descriptors_v::iterator itd = (*it)->descriptors.begin(); itd != (*it)->descriptors.end(); itd++) {
-                cout << " D:" << (int) (*itd)->tag << " {" << typeid( *(*itd)->data ).name() << "} ";
-            }
-        }
-        cout << eit.events.size() << " events ";
-        cout << "]" << endl;
+        //for (dvb::si::eit_section::events_v::iterator it = eit.events.begin(); it != eit.events.end(); it++) {
+        //    for (dvb::si::descriptors_v::iterator itd = (*it)->descriptors.begin(); itd != (*it)->descriptors.end(); itd++) {
+        //    }
+        //}
     }
-//    dvb::si::section section(*buffer);
   }
 
   void stream_random_test() {
@@ -99,24 +93,28 @@ private:
     for (int j=0;j<10000;j++) {
       make_random_buffer (sampleData_1, sizeof(sampleData_1));
       sampleData_1[0] = 0x47;
-//      s << sampleData_1;
+      s << sampleData_1;
     }
     s.removeObserver ( Poco::NObserver<MpegTestSuite, mpeg::stream::payload_unit_ready> ( *this, &MpegTestSuite::handle_payload_unit ) );
   }
 
+  void sections_test() {
+      
+  }
+
+  void descriptors_test() {
+      
+  }
+  
   void stream_data_test() {
-    unsigned char sampleData_1[188], sampleData_2[188];
     ifstream data("data/sample1.ts", ios::in | ios::binary );
-    if (!data) return;
+    TEST_ASSERT (data);
 
     data.seekg(0, ios::end);
     ifstream::pos_type length = data.tellg();
-
-    vector<unsigned char> buffer(length);
     data.seekg(0, ios::beg);
 
-    data.read ((char *)&buffer[0], length);
-    data.close();
+    vector<unsigned char> buffer(188);
 
     mpeg::stream s;
     s.addObserver ( Poco::NObserver<MpegTestSuite, mpeg::stream::payload_unit_ready> ( *this, &MpegTestSuite::handle_payload_unit ) );
@@ -127,14 +125,46 @@ private:
     std::set<unsigned> allowed(allowed_pids, allowed_pids + 5);
 
     while (length - offset >= 188) {
-        if ( allowed.count(mpeg::get_packet_pid((unsigned char *) &buffer[offset])) == 1)
-            s << (unsigned char *) &buffer[offset];
+        data.read ((char *)&buffer[0], 188);
+        if ( allowed.count(mpeg::get_packet_pid((unsigned char *) &buffer[0])) == 1)
+            s << (unsigned char *) &buffer[0];
         offset += 188;
     }
     s.removeObserver ( Poco::NObserver<MpegTestSuite, mpeg::stream::payload_unit_ready> ( *this, &MpegTestSuite::handle_payload_unit ) );
+    data.close();
+
+  }
+
+  void analyzer_data_test() {
+    ifstream data("data/sample1.ts", ios::in | ios::binary );
+    TEST_ASSERT (data);
+
+    data.seekg(0, ios::end);
+    ifstream::pos_type length = data.tellg();
+    data.seekg(0, ios::beg);
+
+    vector<unsigned char> buffer(188);
+
+    mpeg::analyzer a;
+    ifstream::pos_type offset = 0;
+    a.collect_pmt = true;
+    a.filter_mode = mpeg::analyzer::FILTER_ALLOW;
+
+    a.add_pid_to_filter(0);
+    a.add_pid_to_filter(0x10);
+    a.add_pid_to_filter(0x12);
+    
+    while (length - offset >= 188) {
+        data.read ((char *)&buffer[0], 188);
+        a << (unsigned char *) &buffer[0];
+        offset += 188;
+    }
+    
+    data.close();
   }
 
 };
+
 
 int main(int argc, char *argv[]) {
   MpegTestSuite test;
