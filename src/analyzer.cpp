@@ -3,16 +3,17 @@
 
 #include "analyzer.h"
 
-
+ 
 namespace dvb {
 namespace mpeg {
 
-  analyzer::analyzer() {
+  analyzer::analyzer() : collect_pmt(true) {
     PAT_PID = 0x00;
     CAT_PID = 0x01;
     NIT_PID = 0x10;
     SDT_PID = 0x11;
     EIT_PID = 0x12;
+    filter_mode = FILTER_BLOCK;
     _stream.addObserver ( Poco::NObserver<analyzer, mpeg::stream::payload_unit_ready> ( *this, &analyzer::handle_payload_unit ) );
   };
 
@@ -24,19 +25,21 @@ namespace mpeg {
     Poco::SharedPtr < vector<unsigned char> > buffer(puN->buffer);
 
     /* TODO: move this to the <<operator so it makes sense */
-    unsigned PID = dvb::mpeg::get_packet_pid ( *buffer );
+    unsigned PID = puN->PID;
     bool in_filter = (pid_filter.count(PID) == 1);
 
     if ( (in_filter && (filter_mode == FILTER_BLOCK)) || (!in_filter && (filter_mode == FILTER_ALLOW)) )
         return;
 
     if (puN->PID == PAT_PID) {
-        dvb::si::pat_section pat; 
-        if ((pat.read(*buffer) == dvb::si::SECTION_OK) && pat.is_valid()) {
+        dvb::si::pat_section pat; int rval; 
+        if (( (rval = pat.read(*buffer)) == dvb::si::SECTION_OK) && pat.is_valid()) {
             for ( dvb::si::pat_section::programs_v::iterator it = pat.programs.begin(); it != pat.programs.end(); it++ ) {
                 pmt_pids[(*it)->program_map_pid] = (*it)->program_number;
                 if (filter_mode == FILTER_ALLOW && collect_pmt) add_pid_to_filter((*it)->program_map_pid);
             }
+        } else {
+            //cout << "ERROR " << rval << " " << pat.is_valid() << endl;
         }
     } else if (puN->PID == EIT_PID) {
         dvb::si::eit_section eit; eit.read (*buffer);
@@ -61,6 +64,14 @@ namespace mpeg {
 
   analyzer & analyzer::operator<< (unsigned char * buffer) {
     _stream << buffer; return *this;
+  }
+  
+  analyzer & analyzer::operator<< (dvb::mpeg::packet & p) {
+      _stream << p; return *this;
+  }
+  
+  void analyzer::flush() {
+      _stream.flush();
   }
 
 } /* mpeg */

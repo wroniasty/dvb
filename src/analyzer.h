@@ -29,7 +29,6 @@ namespace mpeg {
 
   class analyzer : public Poco::NotificationCenter {
      set<unsigned> pid_filter;
-     map<unsigned, unsigned> pmt_pids;
      stream _stream;
 
      public:
@@ -39,6 +38,7 @@ namespace mpeg {
      unsigned NIT_PID;//= 0x10;
      unsigned SDT_PID;// = 0x11;
      unsigned EIT_PID;// = 0x12;
+     map<unsigned, unsigned> pmt_pids;
 
      typedef enum { FILTER_ALLOW, FILTER_BLOCK } filter_mode_type;
      filter_mode_type filter_mode;
@@ -55,8 +55,11 @@ namespace mpeg {
      void remove_pid_from_filter(unsigned PID);
 
      analyzer & operator<< (bits::bitstream & stream);
+     analyzer & operator<< (dvb::mpeg::packet & p);
      analyzer & operator<< (unsigned char * buffer);
 
+     void flush();
+     
   };
 
 } /* mpeg */

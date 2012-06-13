@@ -6,11 +6,33 @@
         <df name="main">
           <in>analyzer.cpp</in>
           <in>analyzer.h</in>
+          <in>descriptor_cable_delivery_system.cpp</in>
+          <in>descriptor_cable_delivery_system.h</in>
+          <in>descriptor_extended_event.cpp</in>
+          <in>descriptor_extended_event.h</in>
+          <in>descriptor_short_event.cpp</in>
+          <in>descriptor_short_event.h</in>
           <in>descriptors.cpp</in>
           <in>descriptors.h</in>
+          <in>epg.cpp</in>
+          <in>epg.h</in>
           <in>mpegts-xmit.cpp</in>
           <in>mpegts.cpp</in>
           <in>mpegts.h</in>
+          <in>section_eit.cpp</in>
+          <in>section_eit.h</in>
+          <in>section_nit.cpp</in>
+          <in>section_nit.h</in>
+          <in>section_pat.cpp</in>
+          <in>section_pat.h</in>
+          <in>section_pmt.cpp</in>
+          <in>section_pmt.h</in>
+          <in>section_sdt.cpp</in>
+          <in>section_sdt.h</in>
+          <in>section_tdt.cpp</in>
+          <in>section_tdt.h</in>
+          <in>section_tot.cpp</in>
+          <in>section_tot.h</in>
           <in>sections.cpp</in>
           <in>sections.h</in>
         </df>
@@ -23,12 +45,34 @@
       <df name="src">
         <in>analyzer.cpp</in>
         <in>analyzer.h</in>
+        <in>descriptor_cable_delivery_system.cpp</in>
+        <in>descriptor_cable_delivery_system.h</in>
+        <in>descriptor_extended_event.cpp</in>
+        <in>descriptor_extended_event.h</in>
+        <in>descriptor_short_event.cpp</in>
+        <in>descriptor_short_event.h</in>
         <in>descriptors.cpp</in>
         <in>descriptors.h</in>
         <in>dvb.h</in>
+        <in>epg.cpp</in>
+        <in>epg.h</in>
         <in>mpegts-xmit.cpp</in>
         <in>mpegts.cpp</in>
         <in>mpegts.h</in>
+        <in>section_eit.cpp</in>
+        <in>section_eit.h</in>
+        <in>section_nit.cpp</in>
+        <in>section_nit.h</in>
+        <in>section_pat.cpp</in>
+        <in>section_pat.h</in>
+        <in>section_pmt.cpp</in>
+        <in>section_pmt.h</in>
+        <in>section_sdt.cpp</in>
+        <in>section_sdt.h</in>
+        <in>section_tdt.cpp</in>
+        <in>section_tdt.h</in>
+        <in>section_tot.cpp</in>
+        <in>section_tot.h</in>
         <in>sections.cpp</in>
         <in>sections.h</in>
       </df>

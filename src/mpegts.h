@@ -1,6 +1,8 @@
 #ifndef _DVB_MPEG_H_
 #define _DVB_MPEG_H_ 1
 
+#include <cmath>
+
 #include <vector>
 #include <map>
 #include <set>
@@ -13,11 +15,11 @@
 #include "Poco/NObserver.h"
 #include "Poco/AutoPtr.h"
 #include "Poco/SharedPtr.h"
+#include "Poco/DateTime.h"
 
 #include "bits/bits.h"
 #include "bits/bits-stream.h"
 
-#include "sections.h"
 
 #define MPEG_NULL_PID (0x1fff)
 #define MPEG_PACKET_SIZE (188)
@@ -26,10 +28,32 @@ using namespace std;
 
 namespace dvb {
 
+  unsigned int bcd2i(unsigned int bcd);
+  unsigned int i2bcd(unsigned int i);
+
+  unsigned MJD (unsigned Y, unsigned M, unsigned D);
+  Poco::DateTime fromMJD(unsigned MJD);
+  
+  Poco::DateTime read_mjd_datetime(bits::bitstream & source);
+  Poco::Timespan read_bcd_time(bits::bitstream & source);
+  void write_mjd_datetime(bits::bitstream & dest, Poco::DateTime dt);
+  void write_bcd_time(bits::bitstream & dest, Poco::Timespan ts);
+
+namespace util {
+    
+    class position {
+        int _offset0;
+        bits::bitstream & _stream;
+    public:
+        position (bits::bitstream & stream);
+        int operator() ();
+    };
+};  
+  
 namespace mpeg {
   
   typedef boost::crc_optimal<32, 0x04C11DB7, 0xffffffff, 0x0, false, false> crc32_mpeg;
-
+    
   class packet {
   public:
     unsigned int TEI;
@@ -69,9 +93,13 @@ namespace mpeg {
     int write(unsigned char *buffer, std::size_t max_size);
     int write(bits::bitstream & stream, std::size_t max_size);
 
-
+    int max_payload_size();
+    void copy_payload(const unsigned char * source, int size);
   };
 
+  typedef Poco::SharedPtr<packet> packet_p;
+  typedef std::vector<packet_p> packet_v;
+  
   unsigned get_packet_pid ( unsigned char *buffer );
   unsigned get_packet_pid ( std::vector<unsigned char> buffer );
 
@@ -96,9 +124,11 @@ namespace mpeg {
     unsigned operator<< (bits::bitstream & stream);
     unsigned operator<< (unsigned char * buffer);
     unsigned operator<< (std::vector<unsigned char> & buffer);
+    unsigned operator<< (packet & p);
+    
+    void flush();
 
   };
-
 
 } /* mpeg */
 

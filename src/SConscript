@@ -1,6 +1,23 @@
 Import ('env')
 
-env.Library('dvb', ['mpegts.cpp', 'sections.cpp', 'descriptors.cpp', 'analyzer.cpp'])
+sources = [
+'mpegts.cpp', 'descriptors.cpp', 'analyzer.cpp'
+,'epg.cpp'
+,'descriptor_short_event.cpp'
+,'descriptor_extended_event.cpp'
+,'descriptor_cable_delivery_system.cpp'
+,'descriptor_local_time_offset.cpp'
+,'sections.cpp'
+,'section_eit.cpp'
+,'section_nit.cpp'
+,'section_pat.cpp'
+,'section_pmt.cpp'
+,'section_sdt.cpp'
+,'section_tdt.cpp'
+,'section_tot.cpp'
+]
+
+env.Library('dvb', sources)
 
 env.Program('mpegts-xmit.cpp', LIBS=['dvb', 'bits', 'PocoFoundation', 'PocoNet', 'PocoUtil'], LIBPATH='.')
 

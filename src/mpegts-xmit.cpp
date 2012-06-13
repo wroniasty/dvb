@@ -1,6 +1,7 @@
 #include <cpptest.h>
 #include <string.h>
 #include <math.h>
+#include <ctime>
 
 #include <iostream>
 #include <fstream>
@@ -8,6 +9,8 @@
 #include <cassert>
 #include <vector>
 #include <map>
+
+#include <boost/foreach.hpp>
 
 #include "Poco/Util/Application.h"
 #include "Poco/Util/Option.h"
@@ -20,8 +23,10 @@
 #include "Poco/NumberParser.h"
 #include "Poco/Base64Decoder.h"
 #include "Poco/Net/IPAddress.h"
+#include "Poco/Net/DatagramSocket.h"
 
 #include "mpegts.h"
+#include "sections.h"
         
          
 using Poco::Util::Application;
@@ -31,62 +36,12 @@ using Poco::Util::HelpFormatter;
 using Poco::Util::AbstractConfiguration;
 using Poco::Util::OptionCallback;
 using Poco::Net::IPAddress;
+using Poco::Net::DatagramSocket;
 using Poco::SharedPtr;
 using Poco::StringTokenizer;
 
 using namespace dvb;
 
-typedef std::vector<unsigned char> BinaryBuffer;
-typedef struct { unsigned PID; SharedPtr<BinaryBuffer> data; unsigned size; } Section;
-typedef std::vector< SharedPtr<Section> > SectionList;
-
-
-SharedPtr< SectionList > readSectionFileData ( std::istream & i ) {
-  SectionList * sections = new SectionList();
-
-  while (!i.eof()) {
-    std::string line;
-    std::getline(i, line);
-    Poco::StringTokenizer T (line, " ");
-    if (T.count() == 2) {
-      SharedPtr<Section> section ( new Section() );
-      section->PID = Poco::NumberParser::parseUnsigned (T[0]);
-      std::cout << section->PID << std::endl; 
-      /*
-      char buffer[T[1].length()];
-      istringstream out(T[1]);
-      Poco::Base64Decoder b64( out ); b64.read(buffer, sizeof(buffer));
-      vector<char> section (buffer, buffer + sizeof(buffer));
-      cout << PID << " " << section.size() << " " << T[1].length() <<  endl;
-      targets[F[0]][PID].push_back (section);
-      pidContinuity[F[0]][PID] = 0;
-      */
-
-    }
-  } 
-
-  return SharedPtr <SectionList> ( sections );
-}
-
-
-void readSectionFile ( const char * filename, std::map<std::string, SectionList > & storage ) {
-  std::cout << "READING " << filename << std::endl;
-  std::ifstream pf (filename, std::ios::in );
-  std::string storageKey;
-
-  std::getline(pf, storageKey);  
-  StringTokenizer header(storageKey," ");
-  storageKey = header[0] + ":" + header[1];
-
-  std::cout << storageKey << std::endl;
-
-  SharedPtr< SectionList > readSections = readSectionFileData (pf);
-  storage[storageKey].insert ( storage[storageKey].end(), readSections->begin(), readSections->end() );
-
-  pf.close();  
-} 
-
-         
 class MpegXMIT: public Application
 {
 public:
@@ -94,11 +49,8 @@ public:
   {       
   }
 protected:	
-  std::map<std::string, SectionList > sections_pf;
-  std::map<std::string, SectionList > sections_sched;
-  std::map<std::string, SectionList > sections_other;
 
-  void initialize(Application& self)
+    void initialize(Application& self)
   {
     loadConfiguration(); // load default configuration files, if present
     Application::initialize(self);
@@ -141,34 +93,17 @@ protected:
 		      .argument("file")
 		      .callback(OptionCallback<MpegXMIT>(this, &MpegXMIT::handleConfig)));
 
-    options.addOption ( Option( "pf", "p", "EIT present-following sections source file")
-			.required(false)
-			.repeatable(true)
-			.argument("file")
-			.callback(OptionCallback<MpegXMIT>(this, &MpegXMIT::handleSource)));
 
-    options.addOption ( Option( "sched", "s", "EIT sched sections source file")
-			.required(false)
-			.repeatable(true)
-			.argument("file")
-			.callback(OptionCallback<MpegXMIT>(this, &MpegXMIT::handleSource)));
-
-    options.addOption ( Option( "other", "o", "Other SI sections source file")
-			.required(false)
-			.repeatable(true)
-			.argument("file")
-			.callback(OptionCallback<MpegXMIT>(this, &MpegXMIT::handleSource)));
-
-    options.addOption ( Option( "dst-address", "", "Destination IP address")
+    options.addOption ( Option( "dst-address", "d", "Destination IP address")
 			.required(false)
 			.repeatable(true)
 			.argument("ip")
 			.binding("destination.ip"));
 
-    options.addOption ( Option( "dst-port", "", "Destination UDP port")
+    options.addOption ( Option( "dst-port", "p", "Destination UDP port")
 			.required(false)
 			.repeatable(true)
-			.argument("ip")
+			.argument("udp port")
 			.binding("destination.port"));
 
   }
@@ -193,12 +128,6 @@ protected:
   void handleSource(const std::string& name, const std::string& value)
   {
     logger().information( name + " " + value );
-    if (name == "pf") 
-      readSectionFile(value.c_str(), sections_pf);
-    else if (name == "sched")
-      readSectionFile(value.c_str(), sections_sched);
-    else if (name == "other")
-      readSectionFile(value.c_str(), sections_other);
   }
 		
   void displayHelp()
@@ -226,7 +155,80 @@ protected:
 
   int main(const std::vector<std::string>& args)
   {
-    return Application::EXIT_OK;
+      dvb::si::pat_section pat;
+      dvb::si::tdt_section tdt;
+      dvb::si::tot_section tot;
+      
+      pat.section_number = 0;
+      pat.last_section_number = 0;
+      pat.transport_stream_id = 1;
+      pat.section_syntax_indicator = 1;
+      pat.current_next_indicator = 1;
+
+      pat.add_program(0, 0x10);
+
+      pat.add_program(1000, 0xf14);
+      pat.add_program(1001, 0xf16);
+      pat.add_program(1002, 0xf17);
+
+      
+      tdt.table_id = 0x70;
+      
+      tot.add_offset("POL", 0, 1, 0x0200, 0xc013010100, 0x0230);
+      
+      
+      struct timespec sleeptime, remaining;
+      
+      Poco::Net::IPAddress dst_ip ( config().getString("destination.ip", "10.2.100.127") );
+      int dst_port = config().getInt("destination.port", 10001);
+      Poco::Net::SocketAddress dst_addr ( dst_ip, dst_port);
+      Poco::Net::DatagramSocket socket (       
+          Poco::Net::SocketAddress  ( 
+              Poco::Net::IPAddress(), 
+              dst_port)
+        );
+      socket.connect( dst_addr );
+      
+      logger().information( std::string("Sending to ") + dst_addr.toString() );
+      
+      dvb::mpeg::packet_v packets, 
+              p_pat = pat.serialize_to_mpegts(0x00),
+              p_tdt = tdt.serialize_to_mpegts(0x14),
+              p_tot = tot.serialize_to_mpegts(0x14);
+
+      packets.insert (packets.end(), p_pat.begin(), p_pat.end() );
+      packets.insert (packets.end(), p_tdt.begin(), p_tdt.end() );
+      packets.insert (packets.end(), p_tot.begin(), p_tot.end() );
+      
+      unsigned char buffer[188], null_buffer[188];
+      
+      dvb::mpeg::packet nullPacket; nullPacket.PID = 0x1fff;
+      nullPacket.write ( null_buffer, 188 );
+      
+      
+      std::map<unsigned, unsigned> cc; unsigned long cnt = 0; 
+
+      sleeptime.tv_sec = 0;
+      sleeptime.tv_nsec = 1e5;
+      
+      cout << packets.size() << endl;
+      
+      for (int i = 0; i < 20000000; i++) {
+        if (++cnt % 25 == 0) {
+          BOOST_FOREACH ( dvb::mpeg::packet_p p, packets ) {
+                  p->continuityCounter = (cc[p->PID]++) % 16;
+                  p->write( buffer, sizeof(buffer) );
+                  socket.sendBytes ( buffer, sizeof(buffer) );
+                  nanosleep ( &sleeptime, &remaining); 
+          }
+        } else {
+                  socket.sendBytes( null_buffer, sizeof(null_buffer) );
+        }
+        nanosleep ( &sleeptime, &remaining); 
+      }
+      
+      
+      return Application::EXIT_OK;
   }
 	
   void printProperties(const std::string& base)
@@ -265,90 +267,3 @@ POCO_APP_MAIN(MpegXMIT)
 
 
 
-/*
-using namespace std;
-
-#include <Poco/String.h>
-#include <Poco/StringTokenizer.h>
-#include <Poco/NumberParser.h>
-#include <Poco/Base64Decoder.h>
-#include <Poco/Net/IPAddress.h>
-
-#include <sstream>
-#include <map>
-
-typedef map<unsigned, vector<vector<char> > > Target;
-typedef map<string, Target > Targets;
-
-int main(int argc, char *argv[]) {
-  std::ifstream pf ("../data/target_3_sched.sec", std::ios::in );
-  std::string line;
-
-  Targets targets;
-  
-  std::getline(pf, line);
-  Poco::StringTokenizer F(line," ");
-  
-  Poco::Net::IPAddress dstaddress = Poco::Net::IPAddress(F[0]);
-  unsigned dstport = Poco::NumberParser::parseUnsigned(F[1]);
-  
-  //targets[F[0]] = map<unsigned, vector<string>> ();
-    
-  cout << dstaddress.toString() << ":" << dstport << endl << endl;
-
-  map<string, map<unsigned, short>> pidContinuity;
-							       
-  while (!pf.eof()) {
-    std::getline(pf, line);
-    Poco::StringTokenizer T (line, " ");
-    //    cout << " >> " << T.count() << endl;
-    if (T.count() == 2) {
-      unsigned PID = Poco::NumberParser::parseUnsigned (T[0]);
-      char buffer[T[1].length()];
-      istringstream out(T[1]);
-      Poco::Base64Decoder b64( out ); b64.read(buffer, sizeof(buffer));
-      vector<char> section (buffer, buffer + sizeof(buffer));
-      cout << PID << " " << section.size() << " " << T[1].length() <<  endl;
-      targets[F[0]][PID].push_back (section);
-      pidContinuity[F[0]][PID] = 0;
-    }
-  } 
-
-
-  for ( Targets::iterator tg = targets.begin(); tg != targets.end(); tg++) {
-    string target = (*tg).first;
-    for (Target::iterator it = (*tg).second.begin(); it != (*tg).second.end(); it++) {
-      unsigned PID = (*it).first;
-      cout << "  " << PID << " " << endl;
-      for (int idx=0;idx < (*it).second.size(); idx++) {
-	vector<char> data = (*it).second[idx];
-	short CC = (++pidContinuity[target][PID]) %= 16;
-	cout << "      " << idx << " "<<CC<<" packets: " << (data.size() / 188 + 1) << endl;
-      }
-    } 
-  }
-  
-			    
-  pf.close();
-
-  
-  std::ifstream sample ("../data/sample1.ts", std::ios::binary|std::ios::in);
-
-  while (!sample.eof()) {
-    unsigned char buffer[188];
-    sample.read ( (char *)buffer, sizeof(buffer));
-    packet P1(buffer);
-    if (P1.null) continue;
-    cout << "-- - --" << hex << P1.PID << " " << dec << P1.continuityCounter << endl;
-    P1.write (buffer, 188);
-    packet P2(buffer);
-
-    assert ( P1.PID == P2.PID );
-    assert ( P1.continuityCounter == P2.continuityCounter );
-
-  }
-  
-  return 0;
-}
-
-*/
