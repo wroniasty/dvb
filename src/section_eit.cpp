@@ -4,7 +4,29 @@
 namespace dvb {
 
 namespace si {
-  
+   eit_section::event::event()
+    : event_id(0), running_status(1), free_CA_mode(1), descriptors_loop_length(0)
+   {}
+   
+   eit_section::event::event(unsigned _event_id, Poco::DateTime _start_time, 
+         Poco::Timespan _duration, std::string language,
+         std::string title, std::string short_text, std::string long_text)
+    : event_id (_event_id), start_time(_start_time), duration(_duration) {
+
+      dvb::si::descriptor_p d_short ( new dvb::si::descriptor );
+      Poco::SharedPtr<dvb::si::short_event_descriptor> d_short_data =
+              d_short->set_data<dvb::si::short_event_descriptor> ();
+      
+      d_short_data->ISO_639_language_code = language;
+      d_short_data->event_name = title;
+      d_short_data->text = short_text;
+      
+      descriptors.push_back(d_short);
+       
+   }
+   
+   
+
   void eit_section::event::read(bits::bitstream& source) {
      event_id = source.read<unsigned> (16);
      start_time = dvb::read_mjd_datetime(source);
@@ -47,6 +69,12 @@ namespace si {
       };
       return l;      
   }
+
+  eit_section::eit_section() : section()
+  {
+      
+  }
+
   
   void eit_section::read_contents (bits::bitstream & source) {
     dvb::util::position counter(source);  
@@ -63,9 +91,9 @@ namespace si {
 
     events.clear();
     while ( counter() < (section_length - 4) ) {
-        event * e = new event;
+        event_p e ( new event );
         e->read(source);
-        events.push_back ( Poco::SharedPtr<event> (e) );
+        events.push_back ( e );
     }
     crc32 = source.read<unsigned> (32); /* CRC32 */
 
@@ -88,15 +116,90 @@ namespace si {
       };
   }
 
+  eit_section::event_p eit_section::make_event ( 
+        unsigned event_id, Poco::DateTime start_time, 
+        Poco::Timespan duration, std::string language,
+        std::string title, std::string short_text, std::string long_text        
+        ) {
+      event_p e ( new event (event_id, start_time, duration, language, title, short_text, long_text) );
+      return e;
+  }
+
   unsigned eit_section::calculate_section_length() {
-      unsigned l = 14;
+      unsigned l = 15;
       BOOST_FOREACH ( Poco::SharedPtr<event> e, events) {
           l += e->calculate_length();
       };
       return l;      
   }
   
+  eit_section_v eit_prepare_present_following ( 
+          unsigned service_id, 
+          unsigned version_number, 
+          unsigned current_next,
+          unsigned transport_stream_id,
+          unsigned original_network_id,
+          eit_section::event_p present_event,
+          eit_section::event_p following_event          
+          ) 
+   {
+      eit_section_v pf;
+      
+      eit_section_p present ( new eit_section );      
+      present->table_id = 0x4e;
+      present->last_table_id = 0x4e;
+      present->service_id = service_id;
+      present->version_number = version_number;
+      present->current_next_indicator = current_next;
+      present->section_syntax_indicator = 1;
+      present->section_number = 0;
+      present->last_section_number = 1;
+      present->original_network_id = original_network_id;
+      if (present_event)
+        present->events.push_back ( present_event );
 
+      eit_section_p following ( new eit_section );      
+      following->table_id = 0x4e;
+      following->last_table_id = 0x4e;
+      following->service_id = service_id;
+      following->version_number = version_number;
+      following->current_next_indicator = current_next;
+      following->section_syntax_indicator = 1;
+      following->section_number = 1;
+      following->last_section_number = 1;
+      following->original_network_id = original_network_id;
+      if (following_event)
+        following->events.push_back ( following_event );
+
+      pf.push_back (present);
+      pf.push_back (following);
+      
+      return pf;      
+  }
+
+  bool compare_event_p ( eit_section::event_p e1, eit_section::event_p e2 ) {
+      return e1->start_time < e2->start_time;
+  }
+  
+  eit_section_v eit_prepare_schedule ( 
+          unsigned service_id, 
+          unsigned version_number, 
+          unsigned current_next,
+          unsigned transport_stream_id,
+          unsigned original_network_id,
+          eit_section::event_v events
+          ) 
+   {
+      eit_section_v sched;      
+      
+      std::sort ( events.begin(), events.end(), compare_event_p );
+      
+      
+      
+      
+      return sched;
+   }
+  
 }
 
 }

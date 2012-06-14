@@ -10,6 +10,8 @@
           <in>descriptor_cable_delivery_system.h</in>
           <in>descriptor_extended_event.cpp</in>
           <in>descriptor_extended_event.h</in>
+          <in>descriptor_local_time_offset.cpp</in>
+          <in>descriptor_local_time_offset.h</in>
           <in>descriptor_short_event.cpp</in>
           <in>descriptor_short_event.h</in>
           <in>descriptors.cpp</in>
@@ -49,6 +51,8 @@
         <in>descriptor_cable_delivery_system.h</in>
         <in>descriptor_extended_event.cpp</in>
         <in>descriptor_extended_event.h</in>
+        <in>descriptor_local_time_offset.cpp</in>
+        <in>descriptor_local_time_offset.h</in>
         <in>descriptor_short_event.cpp</in>
         <in>descriptor_short_event.h</in>
         <in>descriptors.cpp</in>

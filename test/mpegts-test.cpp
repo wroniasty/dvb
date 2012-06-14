@@ -100,7 +100,7 @@ public:
   }
 
   void stream_random_test() {
-    unsigned char sampleData_1[188], sampleData_2[188];
+    unsigned char sampleData_1[256], sampleData_2[256];
     mpeg::stream s;
     s.addObserver ( Poco::NObserver<MpegTestSuite, mpeg::stream::payload_unit_ready> ( *this, &MpegTestSuite::handle_payload_unit ) );
     for (int j=0;j<10000;j++) {
@@ -246,12 +246,42 @@ public:
       bits::bitstream stream(buffer);
       
       dvb::si::eit_section eit1, eit2;
+      dvb::si::eit_section::event_p ev;
       
-      eit1.write(stream);
+      eit1.events.push_back(
+        ev = dvb::si::eit_section::make_event(0x1000, Poco::DateTime(), 
+              Poco::Timespan(0,0,120,0,0),
+              "POL", "Event Title", "Short desc", "Lone long lone desc")
+      );
       
+      eit1.write(stream);      
       stream.rewind();
-      eit2.read (stream);
       
+      TEST_ASSERT( eit2.read (stream) == dvb::si::SECTION_OK );
+
+      TEST_ASSERT ( eit2.table_id == eit1.table_id );
+      TEST_ASSERT ( eit2.events.size() == eit1.events.size() );
+      
+      dvb::si::eit_section_v pf;
+      
+      pf = dvb::si::eit_prepare_present_following (
+         0x1000, 1, 1, 1, 1,
+           dvb::si::eit_section::make_event (
+              1000, Poco::DateTime(), Poco::Timespan(0,0,60,0,0),
+              "POL", "Present Event", "Some present event", "Long text of Present"
+           ),
+           dvb::si::eit_section::make_event (
+              1000, Poco::DateTime() + Poco::Timespan(0,0,60,0,0), Poco::Timespan(0,0,60,0,0),
+              "POL", "Following Event", "Some following event", "Long text of Following"
+           )
+      );
+      
+     TEST_ASSERT( pf[0]->table_id == 0x4e );
+     TEST_ASSERT( pf[0]->events.size() == 1 );
+
+     TEST_ASSERT( pf[1]->table_id == 0x4e );
+     TEST_ASSERT( pf[1]->events.size() == 1 );
+
  }
   
   void epg_test() {
@@ -261,7 +291,7 @@ public:
       svc1.new_event(1001, 160, 120);
       svc1.new_event(1002, 60, 40);
       
-      dvb::epg::service::event_p e = svc1.get_event(1000);
+      dvb::epg::event_p e = svc1.get_event(1000);
       
       TEST_ASSERT ( e->id == 1000 && e->start == 100 );
       
@@ -272,7 +302,7 @@ public:
         TEST_ASSERT (e->id == 1002);
       }
       
-      std::list<dvb::epg::service::event_p> s = svc1.get_schedule(100, 200);
+      std::list<dvb::epg::event_p> s = svc1.get_schedule(100, 200);
       e = s.front(); TEST_ASSERT ( e->id == 1000 );
       s.pop_front(); e = s.front(); TEST_ASSERT ( e->id == 1001 );
 
@@ -440,4 +470,11 @@ int main(int argc, char *argv[]) {
   MpegTestSuite test;
   Test::TextOutput output(Test::TextOutput::Verbose);
   return test.run(output, false);
+  try {
+     test.pat_section_test();
+  } catch (Poco::Exception & e) {
+      cout << e.message() << endl;
+     cout << e.displayText() << endl;   
+  }
+  return 1;
 }

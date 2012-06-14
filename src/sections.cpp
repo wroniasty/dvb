@@ -18,6 +18,7 @@ namespace si {
                        _check_crc(true)
   {
       table_id = default_table_id;
+      crc32 = 0;
   }
   
   section::~section() {}
@@ -26,8 +27,6 @@ namespace si {
       //unsigned offset = source.read_at<unsigned> (source.position(), 8);
       unsigned pos = source.position();
 
-      unsigned offset = source.read<unsigned> (8);
-      source.skip ( offset * 8 );
       table_id = source.read<unsigned char> ( 8 );
       section_syntax_indicator = source.read<unsigned char> (1);
       source.skip (3);
@@ -45,13 +44,12 @@ namespace si {
     
     if (_check_crc) {
       unsigned length = peek_section_length (source);
-      unsigned offset = source.peek<unsigned>(8);
 
       if (length + 3 > max_length) { _valid = false; return SECTION_SIZE_INVALID; }
       
       dvb::mpeg::crc32_mpeg crc;
-      crc.process_bytes(source.ptr() + source.position()/8 + 1 + offset, length-1);     
-      unsigned actualcrc = source.read_at<unsigned> ( source.position() + 8 + offset*8 + length*8 - 8, 32 );
+      crc.process_bytes(source.ptr() + source.position()/8, length-1);     
+      unsigned actualcrc = source.read_at<unsigned> ( source.position() + length*8 - 8, 32 );
       if (actualcrc != crc.checksum()) {
         _valid = false; return SECTION_CRC_ERROR;        
       }
@@ -71,8 +69,8 @@ namespace si {
   }
   
   void section::read_header (bits::bitstream & source) {
-    unsigned offset = source.read<unsigned> (8);
-    source.skip ( offset * 8 );
+   // unsigned offset = source.read<unsigned> (8);
+   // source.skip ( offset * 8 );
 //    _read_offset_0 = source.position();
     table_id = source.read<unsigned char> ( 8 );
     section_syntax_indicator = source.read<unsigned char> (1);    
@@ -85,8 +83,8 @@ namespace si {
   }
 
   void section::write_header (bits::bitstream & dest) {
-    dest.write (8, 0);   /* pointer offset == 0 */  
-//    _write_offset_0 = dest.position();
+    //dest.write (8, 0);   /* pointer offset == 0 */  
+    //_write_offset_0 = dest.position();
     dest.write (8, table_id);
     dest.write (1, section_syntax_indicator);
     dest.write (3, 0xf);
@@ -105,7 +103,7 @@ namespace si {
     
     if (has_crc) {
       dvb::mpeg::crc32_mpeg crc;
-      crc.process_bytes(dest.ptr() + p0/8 + 1, section_length+3-4);     
+      crc.process_bytes(dest.ptr() + p0/8, section_length+3-4);     
       dest.write (32, crc.checksum());
     }
     
@@ -119,13 +117,17 @@ namespace si {
       bits::bitstream stream(buffer);
       write ( stream );
       int offset = 0;
-      unsigned cc = 0;
+      unsigned cc = 0, count = 0;
       
       while (offset <= calculate_section_length() + 3) {
           dvb::mpeg::packet_p p ( new dvb::mpeg::packet );
           p->PID = pid; p->continuityCounter = ( cc++ % 16 );
-          p->payloadSize = p->max_payload_size();          
-          p->copy_payload ( buffer + offset, std::min((unsigned) p->payloadSize, calculate_section_length() + 1 + 3 - offset ) );
+          p->payloadSize = p->max_payload_size();
+          if (count++ == 0) { p->payload[0] = 0; p->PUSI = 1; }
+          p->payloadSize = p->max_payload_size();
+          p->copy_payload ( buffer + offset, 
+                            std::min((unsigned) p->payloadSize, 
+                            calculate_section_length() + 3 - offset ) );
           offset += p->payloadSize;
           packets.push_back (p);
       }

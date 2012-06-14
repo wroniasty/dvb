@@ -197,12 +197,17 @@ namespace mpeg {
   }
   
   int packet::max_payload_size() {
-      if (adaptationFieldExists > 1) return 188 - 4 - 1 - adaptationFieldLength;
-      else return 188 - 4;
+      if (adaptationFieldExists > 1) 
+          return 188 - 4 - 1 - adaptationFieldLength - (PUSI ? 1 : 0);
+      else 
+          return 188 - 4 - (PUSI ? 1 : 0);
   }
 
   void packet::copy_payload(const unsigned char * source, int size) {
-      memcpy ( payload, source, size );
+      if (PUSI) 
+          memcpy ( payload+1, source, size );
+      else
+          memcpy ( payload, source, size );
   }
 
   unsigned get_packet_pid ( unsigned char *buffer ) { return bits::getbitbuffer<unsigned> (buffer, 11, 13); }
@@ -226,14 +231,43 @@ namespace mpeg {
   unsigned stream::operator<< (packet & p) {
     if (!p.null && p.valid) {
       Poco::SharedPtr <vector<unsigned char> > buffer = partial_payload_units[p.PID];
+      unsigned offset = p.payload[0];
       if (p.PUSI) {
-        if (buffer) {
+        /* check if this is a PES header */
+        if (   p.payload[0] == 0x00 
+            && p.payload[1] == 0x00 
+            && p.payload[2] == 0x01) {
+        } else if (   p.payload[0] == 0x00 
+                   && p.payload[1] == 0x00 
+                   && p.payload[2] == 0x00 
+                   && p.payload[3] == 0x14) {
+                /* TODO: check what this is */                    
+        } else {
+          
+          if (buffer) {
+            if (offset > 0)
+               (*buffer).insert ( (*buffer).end(), p.payload, p.payload+offset);
             postNotification ( new payload_unit_ready (buffer, p.PID) );
+          }
+          
+          buffer = partial_payload_units[p.PID].assign (new vector<unsigned char>);
+          /*
+          unsigned  table_id = p.payload[1+offset];
+          unsigned length = p.payload[1 + offset + 1] & 0xf;
+          length = length*256 + p.payload[1+offset+2];
+            cout << p.PID << endl << bits::hexdump(p.payload, 184, 24);
+            cout  << "   table_id " << hex << table_id << dec << " L:" << length 
+                  << endl;
+           */
         }
-        buffer = partial_payload_units[p.PID] = new vector<unsigned char>;
       }
-      if (buffer) {
-        (*buffer).insert ( (*buffer).end(), p.payload, p.payload+p.payloadSize );
+      if (!buffer.isNull()) {
+        if (p.PUSI) {
+          (*buffer).insert ( (*buffer).end(), p.payload+1+offset, p.payload+1+offset+p.payloadSize );            
+        } else {
+          (*buffer).insert ( (*buffer).end(), p.payload, p.payload+p.payloadSize );
+        }
+          //cout << p.PID << " " << buffer->size() << endl;
       }
       if (p.continuityCounter != (continuity_counter[p.PID] + 1) % 16) continuity_errors++;
       continuity_counter[p.PID] = p.continuityCounter;
@@ -248,7 +282,8 @@ namespace mpeg {
   void stream::flush() {  
       unsigned PID; Poco::SharedPtr<vector<unsigned char> > buffer;      
       BOOST_FOREACH (boost::tie(PID, buffer), partial_payload_units) {
-          postNotification ( new payload_unit_ready (buffer, PID) );
+          if (buffer)
+                  postNotification ( new payload_unit_ready (buffer, PID) );
       }
   }
 

@@ -7,7 +7,7 @@ namespace dvb {
 
 namespace si {
 
-
+  
   class eit_section : public section {
      protected:
 
@@ -18,6 +18,12 @@ namespace si {
 
      class event {
      public:
+         
+         event();
+         event(unsigned _event_id, Poco::DateTime _start_time, 
+               Poco::Timespan _duration, std::string language,
+               std::string title, std::string short_text, std::string long_text);
+         
          void write (bits::bitstream & dest);
          void read (bits::bitstream & read);
          unsigned calculate_length();
@@ -30,10 +36,14 @@ namespace si {
          unsigned descriptors_loop_length;
          descriptors_v descriptors;
      };
-     typedef std::vector<Poco::SharedPtr<event> > events_v;
+     typedef Poco::SharedPtr<event> event_p;
+     typedef std::vector<event_p > event_v;
+     typedef std::vector<event_p > events_v;
 
-     events_v events;
+     event_v events; 
 
+     eit_section();
+     
      unsigned service_id;
      unsigned version_number;
      unsigned current_next_indicator;
@@ -46,10 +56,36 @@ namespace si {
 
      const static unsigned max_length = 4096;
 
+     static event_p make_event ( unsigned event_id, Poco::DateTime start_time, 
+        Poco::Timespan duration, std::string language,
+        std::string title, std::string short_text, std::string long_text        
+        );
      unsigned calculate_section_length();
 
   };
   
+  typedef Poco::SharedPtr<eit_section> eit_section_p;
+  typedef std::vector<eit_section_p> eit_section_v;
+  
+  eit_section_v eit_prepare_present_following ( 
+          unsigned service_id, 
+          unsigned version_number, 
+          unsigned current_next,
+          unsigned transport_stream_id,
+          unsigned original_network_id,
+          eit_section::event_p present,
+          eit_section::event_p following          
+          );
+
+  eit_section_v eit_prepare_schedule ( 
+          unsigned service_id, 
+          unsigned version_number, 
+          unsigned current_next,
+          unsigned transport_stream_id,
+          unsigned original_network_id,
+          eit_section::event_v events
+  );
+
 }
 
 }

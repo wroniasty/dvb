@@ -1,4 +1,4 @@
 Import ('env')
 
-env.Program('mpegts-test.cpp', LIBS=['dvb', 'bits', 'cpptest', 'PocoFoundation', 'PocoNet'])
+env.Program('mpegts-test.cpp', LIBS=['dvb', 'bits', 'cpptest', 'PocoFoundation', 'PocoNet', 'soci_core', 'soci_postgresql'])
 
