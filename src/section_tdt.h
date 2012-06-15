@@ -18,7 +18,6 @@ namespace si {
  
      Poco::DateTime utc;
      tdt_section(); 
-     const static bool has_crc = false;
      const static unsigned default_table_id = 0x70;
 
      virtual unsigned calculate_section_length();

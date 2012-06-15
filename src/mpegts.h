@@ -27,6 +27,9 @@
 using namespace std;
 
 namespace dvb {
+    
+  std::string from_utf8 (std::string to_charset, std::string s);
+  std::string to_utf8 (std::string from_charset, std::string s);
 
   unsigned int bcd2i(unsigned int bcd);
   unsigned int i2bcd(unsigned int i);
@@ -38,7 +41,11 @@ namespace dvb {
   Poco::Timespan read_bcd_time(bits::bitstream & source);
   void write_mjd_datetime(bits::bitstream & dest, Poco::DateTime dt);
   void write_bcd_time(bits::bitstream & dest, Poco::Timespan ts);
+  
+  Poco::DateTime & operator<< (Poco::DateTime & dt, std::tm & tm);
+  std::tm & operator<< (std::tm & tm, Poco::DateTime & dt);
 
+  
 namespace util {
     
     class position {

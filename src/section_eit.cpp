@@ -5,7 +5,7 @@ namespace dvb {
 
 namespace si {
    eit_section::event::event()
-    : event_id(0), running_status(1), free_CA_mode(1), descriptors_loop_length(0)
+    : event_id(0), running_status(1), free_CA_mode(1), descriptors_loop_length(0)           
    {}
    
    eit_section::event::event(unsigned _event_id, Poco::DateTime _start_time, 
@@ -18,8 +18,8 @@ namespace si {
               d_short->set_data<dvb::si::short_event_descriptor> ();
       
       d_short_data->ISO_639_language_code = language;
-      d_short_data->event_name = title;
-      d_short_data->text = short_text;
+      d_short_data->event_name = std::string( "\x15" ) +  title;
+      d_short_data->text = std::string( "\x15" ) +  short_text;
       
       descriptors.push_back(d_short);
        
@@ -46,7 +46,7 @@ namespace si {
      
   }
 
-  void eit_section::event::write(bits::bitstream& dest) {
+  void eit_section::event::write(bits::bitstream& dest) {      
       dest.write(16, event_id);
       dvb::write_mjd_datetime(dest, start_time);
       dvb::write_bcd_time(dest, duration);
@@ -72,7 +72,8 @@ namespace si {
 
   eit_section::eit_section() : section()
   {
-      
+      max_length = 4096;
+      segment_last_section_number = 0;
   }
 
   
@@ -95,11 +96,13 @@ namespace si {
         e->read(source);
         events.push_back ( e );
     }
+    _valid = ( counter() == section_length - 4 );
     crc32 = source.read<unsigned> (32); /* CRC32 */
 
   }
 
   void eit_section::write_contents (bits::bitstream & dest) {
+      dvb::util::position counter(dest);
       dest.write(16, service_id);
       dest.write (2, 0xff);
       dest.write (5, version_number);
@@ -114,6 +117,7 @@ namespace si {
       BOOST_FOREACH( Poco::SharedPtr<event> e, events) {
          e->write( dest );  
       };
+      assert ( counter() == calculate_section_length() - 4 );
   }
 
   eit_section::event_p eit_section::make_event ( 
@@ -156,7 +160,7 @@ namespace si {
       present->last_section_number = 1;
       present->original_network_id = original_network_id;
       if (present_event)
-        present->events.push_back ( present_event );
+         present->events.push_back ( present_event );
 
       eit_section_p following ( new eit_section );      
       following->table_id = 0x4e;
@@ -168,6 +172,7 @@ namespace si {
       following->section_number = 1;
       following->last_section_number = 1;
       following->original_network_id = original_network_id;
+      
       if (following_event)
         following->events.push_back ( following_event );
 

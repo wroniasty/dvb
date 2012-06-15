@@ -13,6 +13,8 @@
 #include <soci/soci-backend.h>
 #include <soci/postgresql/soci-postgresql.h>
 
+#include "mpegts.h"
+
 namespace dvb {
 
     
@@ -24,7 +26,7 @@ namespace epg {
         std::string extended_text;
         std::map<std::string, std::string> items;
     } event_info_;
-    
+        
     class event {
     public:        
         unsigned id;
@@ -48,6 +50,7 @@ namespace epg {
     
     typedef Poco::SharedPtr<event> event_p;
     typedef std::list<event_p> schedule_t;
+    typedef std::vector<event_p> schedule_v;
     
     class service {
     public:
@@ -64,8 +67,9 @@ namespace epg {
                      
         service(unsigned _sid=0, std::string _name = "");
 
-        event_p current_event ( Poco::DateTime now );
-        std::list<event_p> get_schedule (Poco::DateTime t0, Poco::DateTime t1);
+        schedule_v present_following_event ( Poco::DateTime now );
+        schedule_t get_schedule (Poco::DateTime t0, Poco::DateTime t1);
+
         event_p new_event (unsigned event_id, Poco::DateTime start=0, Poco::Timespan duration=0);
         event_p get_event (unsigned event_id);
         void remove_event (unsigned event_id);
@@ -74,6 +78,18 @@ namespace epg {
 
     };
 
+    typedef Poco::SharedPtr<service> service_p;
+    typedef std::list<service_p> service_l;
+    typedef std::vector<service_p> service_v;
+    
+    class target {
+    public:
+        unsigned id;
+        unsigned tsid, origid;
+        service_l services;
+        
+        void init(soci::session & sql, int target_id);
+    };
 }
 
 }

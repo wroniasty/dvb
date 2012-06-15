@@ -19,5 +19,11 @@ sources = [
 
 env.Library('dvb', sources)
 
-env.Program('mpegts-xmit.cpp', LIBS=['dvb', 'bits', 'PocoFoundation', 'PocoNet', 'PocoUtil', 'soci_core', 'soci_postgresql'], LIBPATH='.')
+LIBS=['dvb', 'bits' 
+      ,'PocoFoundation', 'PocoNet', 'PocoUtil'
+      ,'soci_core', 'soci_postgresql'
+      ,'jsoncpp'
+]
+
+env.Program('mpegts-xmit.cpp', LIBS=LIBS , LIBPATH='.')
 

@@ -36,18 +36,25 @@ namespace epg {
     
     service::service(unsigned _sid, std::string _name) : sid(_sid), name(_name) {}
     
-    event_p service::current_event(Poco::DateTime now) {
-        event_p e;
+    schedule_v service::present_following_event(Poco::DateTime now) {
+        int cnt = 2; schedule_v pf;
+        event_p p, f;
         BOOST_FOREACH(event_p ev, schedule) {
-            if (ev->start <= now && (ev->start+ev->duration) >= now) {
-                e = ev; break;
+            if ((ev->start+ev->duration) >= now) {
+                p = ev; break;
             }
         };
-        return e;
+        BOOST_FOREACH(event_p ev, schedule) {
+            if (ev->start > now) {
+                f = ev; break;
+            } 
+        };
+        pf.push_back(p); pf.push_back(f);
+        return pf;
     }
 
-    std::list<event_p> service::get_schedule(Poco::DateTime t0, Poco::DateTime t1) {
-        std::list<event_p> sched;
+    schedule_t service::get_schedule(Poco::DateTime t0, Poco::DateTime t1) {
+        schedule_t sched;
         BOOST_FOREACH(event_p ev, schedule) {
             if (ev->start >= t0 && ev->start <= t1) {
                 sched.push_back( ev );
@@ -80,16 +87,17 @@ namespace epg {
         sort_schedule();
     }
 
-    int service::reload_epg(soci::session& sql, int service_description_id, 
+
+    int service::reload_epg(soci::session& sql, 
+            int service_description_id, 
             Poco::DateTime now) {
         
-        time_t tnow = now.utcTime();
-        std::tm tm_now;  gmtime_r(&tnow, &tm_now);
+        std::tm tm_now; tm_now << now;
 
         soci::rowset<soci::row> events = (sql.prepare << 
               "SELECT * " 
            << "FROM eit_collected_event WHERE service_description_id = :id "
-           << "AND end_time >= :now ORDER BY start_time "
+           << "AND end_time >= :now AND start_time < :now ::timestamp + interval '3 days' ORDER BY start_time "
               , soci::use(tm_now, "now"), soci::use(service_description_id, "id")
         );
       
@@ -97,18 +105,13 @@ namespace epg {
         event_by_id.clear();
       
         for (soci::rowset<soci::row>::const_iterator it=events.begin(); it!=events.end(); ++it) {
-          int event_id = (*it).get<int> ("event_id");
+          int event_id = (*it).get<int> ("event_id");          
           std::tm start_time = (*it).get<std::tm> ("start_time"), 
                   end_time = (*it).get<std::tm> ("end_time");
           event_p e = new_event ( event_id, Poco::DateTime(), Poco::Timespan(0,0,60,0,0) );
-          
-          e->start.assign( start_time.tm_year+1900, start_time.tm_mon+1, start_time.tm_mday,
-                  start_time.tm_hour, start_time.tm_min);
-          Poco::DateTime end_dt( end_time.tm_year+1900, end_time.tm_mon+1, end_time.tm_mday,
-                  end_time.tm_hour, end_time.tm_min);
+          e->start << start_time;
+          Poco::DateTime end_dt; end_dt << end_time;
           e->duration = end_dt - e->start;
-          schedule.push_back(e);
-          event_by_id[event_id] = e;
         }
 
         soci::rowset<soci::row> descriptions = (sql.prepare << 
@@ -116,7 +119,7 @@ namespace epg {
            << "FROM eit_collected_event e INNER JOIN eit_collected_event_description d "
            << "ON e.id = d.collected_event_id "
            << "WHERE e.service_description_id = :id "
-           << "AND e.end_time >= :now ORDER BY e.start_time "
+           << "AND e.end_time >= :now AND e.start_time < :now ::timestamp + interval '3 days' ORDER BY e.start_time "
               , soci::use(tm_now, "now"), soci::use(service_description_id, "id")
         );
 
@@ -137,15 +140,45 @@ namespace epg {
               continue;
           }
         }
-
+        sort_schedule();
     }
-
-//    dvb::si::
     
     bool event_time_compare (const event_p  e1, const event_p e2) { return (*e1) < (*e2); }
     
     void service::sort_schedule() {
         schedule.sort(event_time_compare);
+    }
+    
+    void target::init (soci::session& sql, int target_id) {
+        
+        soci::row target;
+        sql << " SELECT t.*, ts.tsid FROM si_target t INNER JOIN "
+            << " mux_transport_stream ts ON ts.id = t.mux_transport_stream_id "
+            << " WHERE t.id = :id",
+                soci::use (target_id), soci::into(target);
+
+        tsid = target.get<int> ( "tsid", 1);
+        origid = 1;     
+        soci::rowset<soci::row> rtrv_services = (sql.prepare << 
+              " SELECT s.*, sd.name, sd.service_id as sd_service_id  " 
+           << " FROM si_target_service s INNER JOIN si_service_description sd ON sd.id = s.service_description_id "
+           << " WHERE s.target_id = :id "
+              ,soci::use(target_id, "id")
+        );
+        Poco::DateTime now;
+        for (soci::rowset<soci::row>::const_iterator it=rtrv_services.begin(); 
+                it!=rtrv_services.end(); ++it) {
+            int service_id = (*it).get<int> ( "service_id", 0);
+            int sd_service_id = (*it).get<int> ( "sd_service_id", 0);
+            if (!service_id) service_id = sd_service_id;
+            int service_description_id = (*it).get<int> ( "service_description_id", 0);
+
+            string name = (*it).get<string> ("name", "UNKNOWN");
+            service_p svc ( new service ( service_id, name) );
+            svc->reload_epg(sql, service_description_id, now);
+            services.push_back(svc);
+        }        
+        
     }
 }  /* namespace epg */
     

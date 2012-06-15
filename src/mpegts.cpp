@@ -1,4 +1,5 @@
 #include <string.h>
+#include <iconv.h>
 #include <cassert>
 #include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -6,8 +7,61 @@
 
 namespace dvb {
 
+  std::string mpeg_2_utf8 (std::string buffer) {
+      string enc = "iso-8859-2";
+      
+      if (buffer.size() == 0) return std::string("");
+      if (buffer[0] <= 0x1f) {
+          if (buffer[0] == 0x10) {
+              switch (buffer[2]) {
+                  default: enc = "ascii"; break;
+              }
+          } else {
+              switch (buffer[0]) {
+                  default: enc = "ascii"; break;
+              }
+          }
+      }
+      
+      return to_utf8 ( enc, buffer );
+  }
     
-    
+  std::string from_utf8 (std::string to_charset, std::string s) {
+      iconv_t cd = iconv_open ( to_charset.c_str(), "UTF8" );
+      
+      size_t _is, _os;      
+      _is = s.size();
+      _os = _is * 2;
+      
+      char _o[_os]; 
+      memset(_o,0,_os);
+      char * _op = &_o[0];
+      char * _ip = (char *) s.c_str();
+      
+      iconv (cd, &_ip, &_is, &_op, &_os);
+            
+      iconv_close (cd);
+      return std::string(_o);
+  }
+
+  std::string to_utf8 (std::string from_charset, std::string s) {
+      iconv_t cd = iconv_open ( "UTF8", from_charset.c_str() );
+      
+      size_t _is, _os;      
+      _is = s.size();
+      _os = _is * 2;
+      
+      char _o[_os]; 
+      memset(_o,0,_os);
+      char * _op = &_o[0];
+      char * _ip = (char *) s.c_str();
+      
+      iconv (cd, &_ip, &_is, &_op, &_os);
+            
+      iconv_close (cd);
+      return std::string(_o);
+  }
+
   unsigned int bcd2i(unsigned int bcd) {
     unsigned int decimalMultiplier = 1;
     unsigned int digit = 0;
@@ -86,8 +140,24 @@ namespace dvb {
       dest.write (8, dvb::i2bcd(ts.minutes()) );
       dest.write (8, dvb::i2bcd(ts.seconds()) );      
   }
-
   
+  
+  Poco::DateTime & operator<< (Poco::DateTime & dt, std::tm & tm) {
+       dt.assign( tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+                  tm.tm_hour, tm.tm_min, tm.tm_sec);        
+       return dt;
+  }
+  
+  std::tm & operator<< (std::tm & tm, Poco::DateTime & dt) {
+      tm.tm_year = dt.year() - 1900;
+      tm.tm_mon = dt.month() - 1;
+      tm.tm_mday = dt.day();
+      tm.tm_hour = dt.hour();
+      tm.tm_min = dt.minute();
+      tm.tm_sec = dt.second();
+      return tm;
+  }
+
   namespace util {
     position::position(bits::bitstream& stream) : _stream(stream) {
         _offset0 = _stream.position();

@@ -7,6 +7,7 @@ namespace si {
       table_id = default_table_id;
       section_syntax_indicator = 0;
       _check_crc = false;
+      has_crc = false;
   }
     
   void tdt_section::read_contents (bits::bitstream & source) {

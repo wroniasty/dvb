@@ -15,10 +15,11 @@ namespace si {
 
   section::section() : table_id(0), section_syntax_indicator(1),
 		       section_length(0), _valid(true),
-                       _check_crc(true)
+                       _check_crc(true), max_length(1024)
   {
       table_id = default_table_id;
       crc32 = 0;
+      has_crc = true;
   }
   
   section::~section() {}
@@ -37,19 +38,19 @@ namespace si {
 
   int section::read (bits::bitstream & source) {
     _valid = true;
-    /* source should be byte-aligned */  
-    if (source.position() % 8 != 0) { 
+    /* source must be byte-aligned */  
+    if (!source.aligned()) { 
         _valid = false; return SECTION_ALIGNMENT_ERROR; 
     }
     
     if (_check_crc) {
       unsigned length = peek_section_length (source);
-
+      cout << "LENGTH " << length << endl;
       if (length + 3 > max_length) { _valid = false; return SECTION_SIZE_INVALID; }
       
       dvb::mpeg::crc32_mpeg crc;
       crc.process_bytes(source.ptr() + source.position()/8, length-1);     
-      unsigned actualcrc = source.read_at<unsigned> ( source.position() + length*8 - 8, 32 );
+      unsigned actualcrc = source.read_at<unsigned> ( source.position() + (3 + length - 4)*8, 32 );
       if (actualcrc != crc.checksum()) {
         _valid = false; return SECTION_CRC_ERROR;        
       }
@@ -103,8 +104,11 @@ namespace si {
     
     if (has_crc) {
       dvb::mpeg::crc32_mpeg crc;
-      crc.process_bytes(dest.ptr() + p0/8, section_length+3-4);     
+      crc.process_bytes(dest.ptr() + p0/8, calculate_section_length()+3-4);     
       dest.write (32, crc.checksum());
+//      cout << typeid(*this).name() << endl;
+//      cout << calculate_section_length() << " " << counter() << endl;
+      assert ( counter() == calculate_section_length() + 3 );
     }
     
   }
@@ -139,6 +143,11 @@ namespace si {
       return packets;
   }
   
+  void section::serialize_to_mpegts(unsigned PID, dvb::mpeg::packet_v & v) {
+      dvb::mpeg::packet_v pkt = serialize_to_mpegts(PID);
+      v.insert(v.end(), pkt.begin(), pkt.end());
+  }
+  
   unsigned section::calculate_section_length() {
     return section_length;
   }
@@ -150,6 +159,7 @@ namespace si {
   bool section::is_valid() {
     return _valid;
   }
+
 
 
 }

@@ -2,6 +2,7 @@
 #define _DVB_SECTIONS_ 1
 
 #include <boost/crc.hpp>
+#include <boost/foreach.hpp>
 #include "bits/bits-stream.h"
 #include "mpegts.h"
 #include "descriptors.h"
@@ -48,8 +49,8 @@ namespace si {
     unsigned section_syntax_indicator;
     unsigned section_length;
     unsigned crc32;
-    const static unsigned max_length = 1024;
-    const static bool has_crc = true;
+    unsigned max_length;
+    bool has_crc;
 
     const static unsigned default_table_id = 0x0;
     
@@ -67,13 +68,37 @@ namespace si {
     bool is_valid();
 
     virtual dvb::mpeg::packet_v serialize_to_mpegts(unsigned PID);
+    virtual void serialize_to_mpegts(unsigned PID, dvb::mpeg::packet_v & v);
     
   };
   
   typedef Poco::SharedPtr<section> section_p;
   typedef std::vector<section_p> section_v;
 
-  packet_v serialize_to_mpegts ( section_v sections );
+  template <class section_t>
+     packet_v serialize_to_mpegts ( unsigned PID, std::vector< Poco::SharedPtr<section_t> > sections ) {
+      packet_v v;
+      BOOST_FOREACH (Poco::SharedPtr<section_t> section, sections) {
+          section->serialize_to_mpegts(PID, v);
+      }
+      return v;       
+  }
+  
+  template <class section_t>
+     void serialize_to_mpegts ( unsigned PID, 
+                        Poco::SharedPtr<section_t> section,
+                        packet_v & v) {
+      section->serialize_to_mpegts (PID, v);
+  }
+
+  template <class section_t>
+     void serialize_to_mpegts ( unsigned PID, std::vector< Poco::SharedPtr<section_t> > sections,
+          packet_v & v) {
+      BOOST_FOREACH (Poco::SharedPtr<section_t> section, sections) {
+          section->serialize_to_mpegts(PID, v);
+      }
+  }
+
 
 
 }
