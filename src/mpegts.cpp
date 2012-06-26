@@ -3,21 +3,87 @@
 #include <cassert>
 #include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/assign.hpp>
+
 #include "mpegts.h"
 
 namespace dvb {
 
-  std::string mpeg_2_utf8 (std::string buffer) {
+  std::string string_encoding::encode(std::string charset, std::string buffer) {
+      return encoding_map[charset] + from_utf8(charset, buffer);
+  }
+
+  std::string string_encoding::encode(std::string buffer) {
+      return encode("iso-8859-2", buffer);
+  }
+
+  
+  map<std::string, std::string> string_encoding::encoding_map = 
+          boost::assign::map_list_of 
+          ("iso-8859-1", "\x10\x00\x01")
+          ("iso-8859-2", "\x10\x00\x02")
+          ("iso-8859-3", "\x10\x00\x03")
+          ("iso-8859-4", "\x10\x00\x04")
+          ("iso-8859-5", "\x10\x00\x05")
+          ("iso-8859-6", "\x10\x00\x06")
+          ("iso-8859-7", "\x10\x00\x07")
+          ("iso-8859-8", "\x10\x00\x08")
+          ("iso-8859-9", "\x10\x00\x09")
+          ("iso-8859-10", "\x10\x00\x0a")
+          ("iso-8859-11", "\x10\x00\x0b")
+          ("iso-8859-12", "\x10\x00\x0c")
+          ("iso-8859-13", "\x10\x00\x0d")
+          ("iso-8859-14", "\x10\x00\x0e")
+          ("iso-8859-15", "\x10\x00\x0f")
+          ("ascii", "\x11")
+          ("korean", "\x12")
+          ("chinese", "\x13")
+          ("big5", "\x14")
+          ("utf-8", "\x15")
+          ;
+    
+  std::string string_encoding::decode(std::string buffer) {
       string enc = "iso-8859-2";
       
       if (buffer.size() == 0) return std::string("");
       if (buffer[0] <= 0x1f) {
           if (buffer[0] == 0x10) {
               switch (buffer[2]) {
+                  case 0x01: enc = "iso-8859-1"; break;
+                  case 0x02: enc = "iso-8859-2"; break;
+                  case 0x03: enc = "iso-8859-3"; break;
+                  case 0x04: enc = "iso-8859-4"; break;
+                  case 0x05: enc = "iso-8859-5"; break;
+                  case 0x06: enc = "iso-8859-6"; break;
+                  case 0x07: enc = "iso-8859-7"; break;
+                  case 0x08: enc = "iso-8859-8"; break;
+                  case 0x09: enc = "iso-8859-9"; break;
+                  case 0x0a: enc = "iso-8859-10"; break;
+                  case 0x0b: enc = "iso-8859-11"; break;
+                  case 0x0c: enc = "iso-8859-12"; break;
+                  case 0x0d: enc = "iso-8859-13"; break;
+                  case 0x0e: enc = "iso-8859-14"; break;
+                  case 0x0f: enc = "iso-8859-15"; break;
                   default: enc = "ascii"; break;
               }
           } else {
               switch (buffer[0]) {
+                  case 0x01: enc = "iso-8859-5"; break;
+                  case 0x02: enc = "iso-8859-6"; break;
+                  case 0x03: enc = "iso-8859-7"; break;
+                  case 0x04: enc = "iso-8859-8"; break;
+                  case 0x05: enc = "iso-8859-9"; break;
+                  case 0x06: enc = "iso-8859-10"; break;
+                  case 0x07: enc = "iso-8859-11"; break;
+                  case 0x08: enc = "iso-8859-12"; break;
+                  case 0x09: enc = "iso-8859-13"; break;
+                  case 0x0a: enc = "iso-8859-14"; break;
+                  case 0x0b: enc = "iso-8859-15"; break;
+                  case 0x11: enc = "ascii"; break;
+                  case 0x12: enc = "korean"; break;
+                  case 0x13: enc = "chinese"; break;
+                  case 0x14: enc = "big5"; break;
+                  case 0x15: enc = "utf-8"; break;
                   default: enc = "ascii"; break;
               }
           }
@@ -33,8 +99,9 @@ namespace dvb {
       _is = s.size();
       _os = _is * 2;
       
-      char _o[_os]; 
-      memset(_o,0,_os);
+      char _o[_os+1]; 
+      memset(_o,0,_os+1);
+
       char * _op = &_o[0];
       char * _ip = (char *) s.c_str();
       
@@ -174,6 +241,7 @@ namespace mpeg {
     TEI(0), PUSI(0), TP(0), PID(0),
     scramblingControl(0), adaptationFieldExists(1),
     continuityCounter(0), payloadSize(0), valid(1), null(0) {
+      memset( payload, 0xff, sizeof(payload));
   }
 
   packet::packet(std::vector<char> &buffer) {
@@ -357,7 +425,10 @@ namespace mpeg {
       }
   }
 
+  
 
 } /* mpeg */
+
+ 
 
 } /* dvb */

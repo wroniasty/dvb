@@ -11,7 +11,8 @@ namespace si {
    eit_section::event::event(unsigned _event_id, Poco::DateTime _start_time, 
          Poco::Timespan _duration, std::string language,
          std::string title, std::string short_text, std::string long_text)
-    : event_id (_event_id), start_time(_start_time), duration(_duration) {
+    : event_id (_event_id), start_time(_start_time), duration(_duration),
+      running_status(1), free_CA_mode(1), descriptors_loop_length(0) {
 
       dvb::si::descriptor_p d_short ( new dvb::si::descriptor );
       Poco::SharedPtr<dvb::si::short_event_descriptor> d_short_data =
@@ -20,8 +21,21 @@ namespace si {
       d_short_data->ISO_639_language_code = language;
       d_short_data->event_name = std::string( "\x15" ) +  title;
       d_short_data->text = std::string( "\x15" ) +  short_text;
-      
       descriptors.push_back(d_short);
+
+      std::size_t offset = 0;
+//      while (offset < long_text.size()) {
+          dvb::si::descriptor_p d_ext ( new dvb::si::descriptor );
+          Poco::SharedPtr<dvb::si::extended_event_descriptor> d_ext_data =
+              d_ext->set_data<dvb::si::extended_event_descriptor> ();
+          d_ext_data->descriptor_number = 0;
+          d_ext_data->last_descriptor_number = 0;
+          d_ext_data->ISO_639_language_code = language;
+          d_ext_data->text = dvb::string_encoding::encode("HELLO HELLO HELLO");
+          descriptors.push_back(d_ext);          
+//          offset += 253;
+//      }
+      
        
    }
    
@@ -70,10 +84,14 @@ namespace si {
       return l;      
   }
 
-  eit_section::eit_section() : section()
+  eit_section::eit_section() : section(),
+          segment_last_section_number(0),
+          service_id(0), version_number(0), current_next_indicator(0),
+          section_number(0), last_section_number(0), transport_stream_id(0),
+          original_network_id(0), 
+          last_table_id(0)
   {
-      max_length = 4096;
-      segment_last_section_number = 0;
+      max_length = 4096; 
   }
 
   
@@ -124,8 +142,28 @@ namespace si {
         unsigned event_id, Poco::DateTime start_time, 
         Poco::Timespan duration, std::string language,
         std::string title, std::string short_text, std::string long_text        
-        ) {
-      event_p e ( new event (event_id, start_time, duration, language, title, short_text, long_text) );
+        )
+  {
+      return make_event (event_id, start_time, duration, language, title, short_text, long_text, "iso-8859-2");
+  }
+
+  eit_section::event_p eit_section::make_event ( 
+        unsigned event_id, Poco::DateTime start_time, 
+        Poco::Timespan duration, std::string language,
+        std::string title, std::string short_text, std::string long_text,
+        std::string charset
+        )
+  {      
+//      title = std::string ( "\x10\x00\x02" ) + dvb::from_utf8(charset, title);
+//      short_text = std::string ( "\x10\x00\x02" ) + dvb::from_utf8(charset, short_text);
+//      long_text = std::string ( "\x10\x00\x02" ) + dvb::from_utf8(charset, long_text);
+
+      event_p e ( new event (event_id, start_time, duration, language, 
+              dvb::string_encoding::encode(charset, title), 
+              dvb::string_encoding::encode(charset, short_text), 
+              dvb::string_encoding::encode(charset, long_text) )
+      );
+      
       return e;
   }
 

@@ -12,7 +12,7 @@ using namespace boost::lambda;
 namespace dvb {
     
 namespace epg {
-    
+
     event::event () : id(0), start(0), duration(0) {}
     
     event::event_info event::get_info(const std::string language) {

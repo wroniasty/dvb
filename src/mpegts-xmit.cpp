@@ -248,7 +248,7 @@ protected:
             dvb::si::eit_section::make_event (
                 pf[1]->id, pf[1]->start, pf[1]->duration,
                 "pol", pf[1]->info["pol"]->title, pf[1]->info["pol"]->text, "Long text of Present"
-            ) : 0 )
+            ) : 0)
             );
             dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_pf, p_eit_pf);       
         }

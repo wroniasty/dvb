@@ -8,6 +8,7 @@
 #include <set>
 
 #include <boost/crc.hpp>
+#include <boost/assign.hpp>
 
 #include "Poco/NotificationCenter.h"
 #include "Poco/Notification.h"
@@ -25,12 +26,25 @@
 #define MPEG_PACKET_SIZE (188)
 
 using namespace std;
-
+ 
 namespace dvb {
-    
+  /* STRING OPERATIONS */
   std::string from_utf8 (std::string to_charset, std::string s);
   std::string to_utf8 (std::string from_charset, std::string s);
 
+  class string_encoding {
+      static std::map<std::string, std::string> encoding_map;
+  public:
+      static std::string encode(std::string charset, std::string s);
+      static std::string encode(std::string s);
+      static std::string decode(std::string s);
+  };
+
+  std::string utf8_to_mpeg (std::string charset, std::string buffer);
+  std::string mpeg_2_utf8 (std::string buffer);
+  /*** *** *** *** *** ****/
+  
+  /* Date/Time/Interval encoding ops */
   unsigned int bcd2i(unsigned int bcd);
   unsigned int i2bcd(unsigned int i);
 
@@ -44,7 +58,7 @@ namespace dvb {
   
   Poco::DateTime & operator<< (Poco::DateTime & dt, std::tm & tm);
   std::tm & operator<< (std::tm & tm, Poco::DateTime & dt);
-
+  /*** *** *** *** *** ****/
   
 namespace util {
     
