@@ -115,8 +115,8 @@ namespace si {
 
   dvb::mpeg::packet_v section::serialize_to_mpegts( unsigned pid ) {
       unsigned char buffer[max_length+1];
-      memset (buffer, 0, max_length+1);
-
+      memset (buffer, 0, sizeof(buffer));
+      
       dvb::mpeg::packet_v packets;
       bits::bitstream stream(buffer);
       write ( stream );

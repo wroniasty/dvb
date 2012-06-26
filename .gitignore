@@ -16,5 +16,7 @@ data/*
 .scon*
 *~
 /nbproject/private/
+/nbproject/*
 /.sconf_temp/
 config.log
+/dox/*

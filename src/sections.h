@@ -14,21 +14,25 @@ namespace dvb {
 namespace si {
 
   class descriptor;
-
+  
   typedef Poco::SharedPtr < dvb::si::descriptor > descriptor_p;
   typedef std::vector< descriptor_p > descriptors_v;
   typedef std::vector< descriptor_p > descriptor_v;
   
+  //! Quickly check 'table_id' of the section in the bitstream
   unsigned peek_table_id (bits::bitstream & source);
+  //! Quickly check 'table_id' of the section in the buffer
   unsigned peek_table_id (std::vector<unsigned char> & buffer);
     
-  
+
+  //! Section parsing status. 
   typedef enum { 
-      SECTION_OK=0,
+      SECTION_OK=0,  //<
       SECTION_ALIGNMENT_ERROR,
       SECTION_CRC_ERROR,
       SECTION_SIZE_INVALID,
-      SECTION_INVALID } section_status;
+      SECTION_INVALID 
+  } section_status;
 
   class section {
 
@@ -39,11 +43,12 @@ namespace si {
     virtual void write_contents (bits::bitstream & dest);
     virtual bool check_validity();
     bool _valid, _check_crc;
+/*
     int _read_section_offset, 
-//        _read_offset_0,
+        _read_offset_0,
         _write_section_offset,
         _write_offset_0;
-    
+*/    
   public:
     unsigned table_id;
     unsigned section_syntax_indicator;

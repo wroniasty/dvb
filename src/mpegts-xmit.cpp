@@ -242,12 +242,12 @@ protected:
             ( pf[0] ?
             dvb::si::eit_section::make_event (
                 pf[0]->id, pf[0]->start, pf[0]->duration,
-                "pol", pf[0]->info["pol"]->title, /*pf[0]->info["pol"]->text*/"XXX", "Long text of Present"
+                "pol", pf[0]->info["pol"]->title, pf[0]->info["pol"]->text, "Long text of Present"
             ) : 0 ),
             ( pf[1] ? 
             dvb::si::eit_section::make_event (
                 pf[1]->id, pf[1]->start, pf[1]->duration,
-                "pol", pf[1]->info["pol"]->title, /*pf[1]->info["pol"]->text*/"XXX", "Long text of Present"
+                "pol", pf[1]->info["pol"]->title, pf[1]->info["pol"]->text, "Long text of Present"
             ) : 0 )
             );
             dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_pf, p_eit_pf);       
@@ -258,7 +258,7 @@ protected:
           logger().information( "Sending PAT.");
           pat.section_number = 0;
           pat.last_section_number = 0;
-          pat.transport_stream_id = TSID;
+          pat.transport_stream_id = TSID; 
           pat.section_syntax_indicator = 1;
           pat.current_next_indicator = 1;
           pat.add_program(0, 0x10);  /* network */
@@ -305,6 +305,7 @@ protected:
 
 #define SEND(V,I) { BOOST_FOREACH(dvb::mpeg::packet_p P, V) { \
                   P->continuityCounter = (cc[P->PID]++) % 16; \
+                  memset (buffer,0xff,sizeof(buffer)); \
                   P->write( buffer, sizeof(buffer) ); \
                   socket->sendBytes ( buffer, sizeof(buffer) ); \
                   sleeptime.tv_sec = 0; sleeptime.tv_nsec = I; nanosleep ( &sleeptime, &remaining); \
