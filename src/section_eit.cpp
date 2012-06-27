@@ -24,6 +24,7 @@ namespace si {
       descriptors.push_back(d_short);
 
       std::size_t offset = 0;
+      /*
 //      while (offset < long_text.size()) {
           dvb::si::descriptor_p d_ext ( new dvb::si::descriptor );
           Poco::SharedPtr<dvb::si::extended_event_descriptor> d_ext_data =
@@ -37,7 +38,7 @@ namespace si {
           descriptors.push_back(d_ext);          
 //          offset += 253;
 //      }
-      
+*/
        
    }
    

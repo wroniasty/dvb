@@ -13,6 +13,7 @@
 
 #include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include "Poco/Util/Application.h"
 #include "Poco/Util/Option.h"
@@ -236,20 +237,30 @@ protected:
         BOOST_FOREACH ( dvb::epg::service_p svc, target.services) {
             dvb::epg::schedule_v pf = svc->present_following_event(now);
             logger().information( string(" + ") + svc->name );
+	    if (pf[0]) {
+	      logger().information ( pf[0]->info["pol"]->title );
+	      logger().information ( pf[0]->info["pol"]->text );
+	    }
+	    if (pf[1]) {
+	      logger().information ( pf[1]->info["pol"]->title );
+	      logger().information ( pf[1]->info["pol"]->text );
+	    }
+	    logger().information ( string("TSID: ")  + boost::lexical_cast<string> ( target.tsid ) );
             eit_pf = 
             dvb::si::eit_prepare_present_following (
-            svc->sid, 1, 1, target.tsid, target.origid,
-            ( pf[0] ?
-            dvb::si::eit_section::make_event (
-                pf[0]->id, pf[0]->start, pf[0]->duration,
-                "pol", pf[0]->info["pol"]->title, pf[0]->info["pol"]->text, "Long text of Present"
-            ) : 0 ),
-            ( pf[1] ? 
-            dvb::si::eit_section::make_event (
-                pf[1]->id, pf[1]->start, pf[1]->duration,
-                "pol", pf[1]->info["pol"]->title, pf[1]->info["pol"]->text, "Long text of Present"
-            ) : 0)
+               svc->sid, 20, 1, target.tsid, target.origid,
+               ( pf[0] ?
+                 dvb::si::eit_section::make_event (
+                   pf[0]->id, pf[0]->start, pf[0]->duration,
+                   "pol", pf[0]->info["pol"]->title, pf[0]->info["pol"]->text, "Long text of Present"
+               ) : 0 ),
+               ( pf[1] ? 
+                 dvb::si::eit_section::make_event (
+                   pf[1]->id, pf[1]->start, pf[1]->duration,
+                   "pol", pf[1]->info["pol"]->title, pf[1]->info["pol"]->text, "Long text of Present"
+               ) : 0)
             );
+
             dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_pf, p_eit_pf);       
         }
       }

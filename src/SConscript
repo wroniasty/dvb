@@ -22,7 +22,7 @@ env.Library('dvb', sources)
 LIBS=['dvb', 'bits' 
       ,'PocoFoundation', 'PocoNet', 'PocoUtil'
       ,'soci_core', 'soci_postgresql'
-      ,'jsoncpp'
+#      ,'jsoncpp'
 ]
 
 env.Program('mpegts-xmit.cpp', LIBS=LIBS , LIBPATH='.')
