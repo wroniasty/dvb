@@ -54,6 +54,13 @@ namespace si {
      unsigned segment_last_section_number;
      unsigned last_table_id;
 
+     int add_event ( event_p e );
+     int add_event ( unsigned event_id, Poco::DateTime start_time, 
+        Poco::Timespan duration, std::string language,
+        std::string title, std::string short_text, std::string long_text,
+        std::string charset );
+     
+          
      static event_p make_event ( unsigned event_id, Poco::DateTime start_time, 
         Poco::Timespan duration, std::string language,
         std::string title, std::string short_text, std::string long_text        
@@ -64,6 +71,7 @@ namespace si {
         std::string title, std::string short_text, std::string long_text,
         std::string charset
         );
+     
      unsigned calculate_section_length();
 
   };

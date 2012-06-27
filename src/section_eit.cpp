@@ -19,8 +19,8 @@ namespace si {
               d_short->set_data<dvb::si::short_event_descriptor> ();
       
       d_short_data->ISO_639_language_code = language;
-      d_short_data->event_name = std::string( "\x15" ) +  title;
-      d_short_data->text = std::string( "\x15" ) +  short_text;
+      d_short_data->event_name = title;
+      d_short_data->text = short_text;
       descriptors.push_back(d_short);
 
       std::size_t offset = 0;
@@ -31,6 +31,8 @@ namespace si {
           d_ext_data->descriptor_number = 0;
           d_ext_data->last_descriptor_number = 0;
           d_ext_data->ISO_639_language_code = language;
+          d_ext_data->add_item("2012", "rok");
+          d_ext_data->add_item("sensacha", "rodzaj");
           d_ext_data->text = dvb::string_encoding::encode("HELLO HELLO HELLO");
           descriptors.push_back(d_ext);          
 //          offset += 253;
@@ -138,6 +140,24 @@ namespace si {
       assert ( counter() == calculate_section_length() - 4 );
   }
 
+  int eit_section::add_event(event_p e) {      
+      if (calculate_section_length() + e->calculate_length() > max_length - 2) {
+          return 0;
+      } else {
+          events.push_back(e);
+      }
+      return 1;
+  }
+  
+  int eit_section::add_event(unsigned event_id, Poco::DateTime start_time, 
+          Poco::Timespan duration, std::string language, 
+          std::string title, std::string short_text, std::string long_text, 
+          std::string charset) {
+      event_p e = make_event ( event_id, start_time, duration, language,
+              title, short_text, long_text, charset);
+      return add_event (e);
+  } 
+  
   eit_section::event_p eit_section::make_event ( 
         unsigned event_id, Poco::DateTime start_time, 
         Poco::Timespan duration, std::string language,
@@ -154,9 +174,6 @@ namespace si {
         std::string charset
         )
   {      
-//      title = std::string ( "\x10\x00\x02" ) + dvb::from_utf8(charset, title);
-//      short_text = std::string ( "\x10\x00\x02" ) + dvb::from_utf8(charset, short_text);
-//      long_text = std::string ( "\x10\x00\x02" ) + dvb::from_utf8(charset, long_text);
 
       event_p e ( new event (event_id, start_time, duration, language, 
               dvb::string_encoding::encode(charset, title), 
@@ -198,7 +215,7 @@ namespace si {
       present->last_section_number = 1;
       present->original_network_id = original_network_id;
       if (present_event)
-         present->events.push_back ( present_event );
+         present->add_event(present_event);
 
       eit_section_p following ( new eit_section );      
       following->table_id = 0x4e;
@@ -212,7 +229,7 @@ namespace si {
       following->original_network_id = original_network_id;
       
       if (following_event)
-        following->events.push_back ( following_event );
+        following->add_event ( following_event );
 
       pf.push_back (present);
       pf.push_back (following);
