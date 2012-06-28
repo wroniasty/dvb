@@ -61,7 +61,7 @@ namespace si {
 
   void descriptor::write (bits::bitstream & dest) {
       dest.write (8, tag);
-      length = 2 + data->get_length();
+      length = data->get_length();
       dest.write (8, length);
       data->write( (*this), dest );
   }

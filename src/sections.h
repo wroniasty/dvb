@@ -8,7 +8,7 @@
 #include "descriptors.h"
 
 using namespace dvb::mpeg;
-
+ 
 namespace dvb {
 
 namespace si {

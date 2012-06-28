@@ -41,8 +41,9 @@ namespace si {
   
   void local_time_offset_descriptor::write(descriptor & d, bits::bitstream & dest) {
       BOOST_FOREACH ( offset_p o, offsets ) {
+          cout << "LTOD:" << o->code << " " << o->region_id << " " << o->local_time_offset_polarity << endl;
           dest.writestring ( o->code, 3);
-          dest.write (6, o->region_id);
+          dest.write (6, o->region_id);          
           dest.write (1, 1);
           dest.write (1, o->local_time_offset_polarity);
           dest.write (16,o->local_time_offset);

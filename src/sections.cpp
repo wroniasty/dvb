@@ -45,7 +45,6 @@ namespace si {
     
     if (_check_crc) {
       unsigned length = peek_section_length (source);
-      cout << "LENGTH " << length << endl;
       if (length + 3 > max_length) { _valid = false; return SECTION_SIZE_INVALID; }
       
       dvb::mpeg::crc32_mpeg crc;

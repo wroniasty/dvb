@@ -42,7 +42,7 @@ public:
 
   MpegTestSuite() {
     TEST_ADD(MpegTestSuite::stream_data_test);
-    return;
+    //return;
     TEST_ADD(MpegTestSuite::packet_random_test);
     //TEST_ADD(MpegTestSuite::stream_random_test);
     TEST_ADD(MpegTestSuite::analyzer_data_test);
@@ -94,7 +94,7 @@ public:
     } else if (puN->PID == 0x12) {
         dvb::si::eit_section eit; 
         int rval = eit.read (*buffer);
-        TEST_ASSERT_MSG( rval != dvb::si::SECTION_CRC_ERROR, "EIT CRC ERROR" );
+//        TEST_ASSERT_MSG( rval != dvb::si::SECTION_CRC_ERROR, "EIT CRC ERROR" );
         TEST_ASSERT_MSG( rval != dvb::si::SECTION_SIZE_INVALID, "EIT SIZE ERROR" );
         //for (dvb::si::eit_section::events_v::iterator it = eit.events.begin(); it != eit.events.end(); it++) {
         //    for (dvb::si::descriptors_v::iterator itd = (*it)->descriptors.begin(); itd != (*it)->descriptors.end(); itd++) {

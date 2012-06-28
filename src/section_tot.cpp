@@ -40,14 +40,14 @@ namespace si {
       dest.write (8, dvb::i2bcd(utc.hour()) );
       dest.write (8, dvb::i2bcd(utc.minute()) );
       dest.write (8, dvb::i2bcd(utc.second()) );
-      dest.write (4, 0xf);
+      dest.write (4, 0xffff);
       std::size_t length_position = dest.position();
       dest.skip(12);
       dvb::util::position counter(dest);
       BOOST_FOREACH (dvb::si::descriptor_p d, descriptors) {
           d->write (dest);
       }
-      dest.write_at(length_position, 12, counter());
+      dest.write_at<unsigned> (length_position, 12, counter());
   }
   
   void tot_section::add_offset ( std::string code, unsigned region_id, 

@@ -39,6 +39,10 @@
 #include "sections.h"
 #include "epg.h"        
          
+
+#include <bits/bits.h>
+#include <bits/bits-stream.h>
+
 using Poco::Util::Application;
 using Poco::Util::Option;
 using Poco::Util::OptionSet;
@@ -223,6 +227,17 @@ protected:
       
       dvb::mpeg::packet_v p_pat, p_tot, p_tdt, p_eit_pf;
 
+      /*
+      tot.add_offset ( "POL", 0, 0, 0x0200, (unsigned long long)dvb::MJD(2012,10,01) * 0x1000000 + 0x000000, 0x0100);
+      tot.utc.assign( 2010, 1,1,0,0,0 );
+      unsigned char buf[100];
+      bits::bitstream str (buf);
+      tot.write(str);
+      cout << bits::hexdump (buf, 29, 29 ) << endl;
+      
+      return 1;
+      */
+      
       Poco::Timestamp now, 
               last_pat_transmit, 
               last_time_transmit, last_time_update, 
@@ -279,7 +294,7 @@ protected:
       if (send_time) {
           logger().information( "Sending TDT/TOT.");
           logger().information( " + time offset: +02:00");
-          tot.add_offset ( "POL", 0, 1, 0x0200, dvb::MJD(2013,10,01) * 0x1000000 + 0x033000, 0x0100);
+          tot.add_offset ( "POL", 0, 0, 0x0200, (unsigned long long)dvb::MJD(2012,10,01) * 0x1000000 + 0x033000, 0x0100);
       }
 
       
