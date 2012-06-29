@@ -63,13 +63,40 @@ public:
   {       
   }
 protected:	
+    std::ofstream sout;
+    
+    dvb::epg::target target;      
+                  
+    dvb::si::pat_section pat;
+    dvb::si::tdt_section tdt;
+    dvb::si::tot_section tot;
+    dvb::si::eit_section_v eit_pf, eit_sched;
+    dvb::mpeg::packet_v p_pat, p_tot, p_tdt, p_eit_pf, p_eit_sched;
+    dvb::epg::schedule_v pf, sched;
+    
+    unsigned target_id, TSID, bitrate, si_version;
+    Poco::Net::IPAddress dst_ip;
+    int dst_port;
+    
+    bool send_time, send_pat, send_epg;
+    unsigned pat_interval, time_interval, epg_interval, 
+        epg_update_interval, target_update_interval;
 
+    std::string dumpfile;
+    
+    Poco::Timestamp now, 
+              last_pat_transmit, 
+              last_time_transmit, last_time_update, 
+              last_eit_transmit,
+              last_transfer_check,
+              last_epg_update, last_target_update;
+        
     void initialize(Application& self)
-  {
+    {
     loadConfiguration(); // load default configuration files, if present
     Application::initialize(self);
     // add your own initialization code here
-  }
+    }
 	
   void uninitialize()
   {
@@ -119,11 +146,21 @@ protected:
                         .argument ("0|1")
 			.binding("mpeg.pat"));
 
+    options.addOption ( Option( "pat-interval", "", "Interval between PAT transmits (ms)")
+                        .argument ( "ms" )
+			.repeatable(false)
+			.binding("mpeg.pat-interval"));
+
     options.addOption ( Option( "time", "", "Send TOT/TDT sections")
 			.required(false) 
 			.repeatable(false)
                         .argument("0|1")
 			.binding("mpeg.time"));
+
+    options.addOption ( Option( "time-interval", "", "Interval between TOT/TDT transmits (ms)")
+                        .argument ( "ms" )
+			.repeatable(false)
+			.binding("mpeg.time-interval"));
 
     options.addOption ( Option( "epg", "", "Send EPG sections")
 			.required(false) 
@@ -131,11 +168,38 @@ protected:
                         .argument("0|1")
 			.binding("mpeg.epg"));
 
+    options.addOption ( Option( "epg-interval", "", "Interval between EIT transmits (ms)")
+                        .argument ( "ms" )
+			.repeatable(false)
+			.binding("mpeg.epg-interval"));
+
+    options.addOption ( Option( "epg-update-interval", "", "Interval between EPG content updates")
+                        .argument ( "seconds" )
+			.repeatable(false)
+			.binding("mpeg.epg-update-interval"));
+
+    options.addOption ( Option( "target-update-interval", "", "Interval between EPG content reloads from DB")
+                        .argument ( "seconds" )
+			.repeatable(false)
+			.binding("mpeg.target-update-interval"));
+
     options.addOption ( Option( "tsid", "", "Transport stream ID")
 			.required(false)
                         .argument ( "ID" )
 			.repeatable(false)
 			.binding("mpeg.tsid"));
+
+    options.addOption ( Option( "si-version", "", "SI tables version_number")
+			.required(false) 
+			.repeatable(false)
+                        .argument("0-31")
+			.binding("mpeg.version"));
+
+    options.addOption ( Option( "dump-file", "", "file to dump output")
+			.required(false) 
+			.repeatable(false)
+                        .argument("filename")
+			.binding("mpeg.dumpfile"));
 
     options.addOption ( Option( "bitrate", "", "Target stream bitrate")
                         .argument ( "bitrate/kbps" )
@@ -200,88 +264,119 @@ protected:
     config().setString(name, value);
   }
 
-  int main(const std::vector<std::string>& args)
-  {
-      if (_helpRequested) return Application::EXIT_OK;
-
-      soci::session sql(soci::postgresql, "dbname=mpegts user=mpegts"); 
-
-            
-      unsigned target_id = config().getInt( "destination.target-id",  0);
-      unsigned TSID = config().getInt( "mpeg.tsid",  0);
-      unsigned bitrate = config().getInt( "mpeg.bitrate",  512);
-      Poco::Net::IPAddress dst_ip ( config().getString("destination.ip", "127.0.0.1") );
-      int dst_port = config().getInt("destination.port", 12345);
-
-      bool send_time = config().getBool( "mpeg.time", false );
-      bool send_pat = config().getBool( "mpeg.pat", false );
-      bool send_epg = config().getBool( "mpeg.epg", false );
-
-      dvb::epg::target target;      
-            
-      
-      dvb::si::pat_section pat;
-      dvb::si::tdt_section tdt;
-      dvb::si::tot_section tot;
-      dvb::si::eit_section_v eit_pf, eit_sched;
-      
-      dvb::mpeg::packet_v p_pat, p_tot, p_tdt, p_eit_pf;
-
-      /*
-      tot.add_offset ( "POL", 0, 0, 0x0200, (unsigned long long)dvb::MJD(2012,10,01) * 0x1000000 + 0x000000, 0x0100);
-      tot.utc.assign( 2010, 1,1,0,0,0 );
-      unsigned char buf[100];
-      bits::bitstream str (buf);
-      tot.write(str);
-      cout << bits::hexdump (buf, 29, 29 ) << endl;
-      
-      return 1;
-      */
-      
-      Poco::Timestamp now, 
-              last_pat_transmit, 
-              last_time_transmit, last_time_update, 
-              last_eit_transmit,
-              last_transfer_check;
-
-      if (send_epg) {
-        logger().information( "Sending EPG.");
-        target.init (sql, target_id);
+  void reload_epg() {
+     soci::session sql(soci::postgresql, "dbname=mpegts user=mpegts"); 
+     target.init (sql, target_id);        
+     sql.close();
+     
+     sout << "[";
+     BOOST_FOREACH ( dvb::epg::service_p svc, target.services) {
+         sout << svc->name << "(" << svc->sid << ") ";
+     }
+     sout << "]" << endl;
+     
+     last_target_update.update();
+     update_pf_epg_content();
+  }
+  
+  void update_pf_epg_content() {
+        static unsigned i = 0;
         TSID = target.tsid;
         
+        p_eit_pf.clear();
+        si_version = si_version % 31 + 1;
+        sout << "{";
         BOOST_FOREACH ( dvb::epg::service_p svc, target.services) {
-            dvb::epg::schedule_v pf = svc->present_following_event(now);
-            logger().information( string(" + ") + svc->name );
+            pf = svc->present_following_event(now);
+            sout << svc->name << ":\"";
 	    if (pf[0]) {
-	      logger().information ( pf[0]->info["pol"]->title );
-	      logger().information ( pf[0]->info["pol"]->text );
+                sout << pf[0]->info["pol"]->title << "\"  "; 
 	    }
 	    if (pf[1]) {
-	      logger().information ( pf[1]->info["pol"]->title );
-	      logger().information ( pf[1]->info["pol"]->text );
 	    }
-	    logger().information ( string("TSID: ")  + boost::lexical_cast<string> ( target.tsid ) );
+	    //logger().information ( string("TSID: ")  + boost::lexical_cast<string> ( target.tsid ) );
             eit_pf = 
             dvb::si::eit_prepare_present_following (
-               svc->sid, 20, 1, target.tsid, target.origid,
+               svc->sid, si_version, 1, target.tsid, target.origid,
                ( pf[0] ?
                  dvb::si::eit_section::make_event (
                    pf[0]->id, pf[0]->start, pf[0]->duration,
-                   "pol", pf[0]->info["pol"]->title, pf[0]->info["pol"]->text, "Long text of Present"
+                   "pol", pf[0]->info["pol"]->title, pf[0]->info["pol"]->text, 
+                    pf[0]->info["pol"]->extended_text
                ) : 0 ),
                ( pf[1] ? 
                  dvb::si::eit_section::make_event (
                    pf[1]->id, pf[1]->start, pf[1]->duration,
-                   "pol", pf[1]->info["pol"]->title, pf[1]->info["pol"]->text, "Long text of Present"
+                   "pol", pf[1]->info["pol"]->title, pf[1]->info["pol"]->text, 
+                   pf[1]->info["pol"]->extended_text
                ) : 0)
             );
-
             dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_pf, p_eit_pf);       
+            
+            
+            
+            /* UPDATE SCHEDULE version_number !!! */            
+            //dvb::si::eit_section::event_v sched; /* = svc->get_schedule(now, now); */            
+            //eit_sched = dvb::si::eit_prepare_schedule(svc->sid, si_version, 1, target.tsid, 1, 
+            //        sched);
+            //dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_sched, p_eit_sched);                   
+            
         }
-      }
+        sout << "}" << endl;
+        last_epg_update.update();        
+        if (++i % 20 == 0) { update_sched_epg_content(); i=0; }
+        else {
+            p_eit_sched.clear();
+            BOOST_FOREACH ( dvb::si::eit_section_p s, eit_sched) {
+                s->version_number = si_version;
+            }
+            dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_sched, p_eit_sched);                   
+        }
+  }
+  
+  void update_sched_epg_content() {
+        TSID = target.tsid;        
+        p_eit_sched.clear();        
+        sout << "{";
+        BOOST_FOREACH ( dvb::epg::service_p svc, target.services) {
+            pf = svc->present_following_event(now);            
+            dvb::si::eit_section::event_v sched; /* = svc->get_schedule(now, now); */            
+            eit_sched = dvb::si::eit_prepare_schedule(svc->sid, si_version, 1, target.tsid, 1, 
+                    sched);
+            dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_sched, p_eit_sched);                   
+            
+        }
+        sout << "}" << endl;
+        last_epg_update.update();        
+  }
+  
+  int main(const std::vector<std::string>& args)
+  {
+      if (_helpRequested) return Application::EXIT_OK;
+
+      sout.open("/dev/stdout", std::ios::out);
       
+      target_id = config().getInt( "destination.target-id",  0);
+      TSID = config().getInt( "mpeg.tsid",  0);
+      bitrate = config().getInt( "mpeg.bitrate",  512);
+      dst_ip = Poco::Net::IPAddress(config().getString("destination.ip", "127.0.0.1"));
+      dst_port = config().getInt("destination.port", 12345);
+      si_version = config().getInt("mpeg.version", 1);
+
+      send_time = config().getBool( "mpeg.time", false );
+      send_pat = config().getBool( "mpeg.pat", false );
+      send_epg = config().getBool( "mpeg.epg", false );
+      dumpfile = config().getString("mpeg.dumpfile", "");
+      
+      pat_interval = config().getInt("mpeg.pat-interval", 1000 );
+      time_interval = config().getInt("mpeg.time-interval", 900 );
+      epg_interval = config().getInt("mpeg.epg-interval", 900 );
+      epg_update_interval = config().getInt("mpeg.epg-update-interval", 60 );
+      target_update_interval = config().getInt("mpeg.target-update-interval", 10*60 );
+
+     
       if (send_pat) {
-          logger().information( "Sending PAT.");
+          logger().information( "+ PAT");
           pat.section_number = 0;
           pat.last_section_number = 0;
           pat.transport_stream_id = TSID; 
@@ -291,20 +386,24 @@ protected:
           p_pat = pat.serialize_to_mpegts(0x00);
       }
       
-      if (send_time) {
-          logger().information( "Sending TDT/TOT.");
-          logger().information( " + time offset: +02:00");
+      if (send_time) {          
+          logger().information( "+ TDT/TOT.");
+          logger().information( " +++ time offset: +02:00");
           tot.add_offset ( "POL", 0, 0, 0x0200, (unsigned long long)dvb::MJD(2012,10,01) * 0x1000000 + 0x033000, 0x0100);
       }
 
-      
+     if (send_epg) {
+        logger().information( "+ EPG");
+        reload_epg();
+      } 
+       
       struct timespec sleeptime, remaining;
       
       Poco::Net::SocketAddress dst_addr ( dst_ip, dst_port);
       Poco::SharedPtr<Poco::Net::DatagramSocket>  socket;
       
       if (dst_ip.isMulticast()) {
-         socket.assign( new Poco::Net::MulticastSocket (       
+         socket.assign( new Poco::Net::MulticastSocket (      
           Poco::Net::SocketAddress  ( 
               Poco::Net::IPAddress(), 
               dst_port)
@@ -327,6 +426,11 @@ protected:
       
       dvb::mpeg::packet nullPacket; nullPacket.PID = 0x1fff;
       nullPacket.write ( null_buffer, 188 );
+      
+      std::ofstream off;
+      if (dumpfile.size() > 0) {
+        off.open(dumpfile.c_str(), std::ios::out | std::ios::binary );
+      }      
 
 
 #define SEND(V,I) { BOOST_FOREACH(dvb::mpeg::packet_p P, V) { \
@@ -335,6 +439,7 @@ protected:
                   P->write( buffer, sizeof(buffer) ); \
                   socket->sendBytes ( buffer, sizeof(buffer) ); \
                   sleeptime.tv_sec = 0; sleeptime.tv_nsec = I; nanosleep ( &sleeptime, &remaining); \
+                  if (off) off.write ( (char *)buffer, sizeof(buffer)); \
                   cnt++; \
         } }
       
@@ -347,19 +452,20 @@ protected:
 
         try { 
 
-        if (send_pat && last_pat_transmit.isElapsed( 1e3 * 1000) ) {
+        if (send_pat && last_pat_transmit.isElapsed( 1e3 * pat_interval) ) {
             SEND(p_pat,sleep_time);
             last_pat_transmit.update();
         }          
 
-        if (send_time && last_time_transmit.isElapsed( 1e3 * 250) ) {
+        if (send_time && last_time_transmit.isElapsed( 1e3 * time_interval) ) {
             SEND(p_tdt,sleep_time);
             SEND(p_tot,sleep_time);
             last_time_transmit.update();
         }
 
-        if (send_epg && last_eit_transmit.isElapsed( 1e3 * 100) ) {
+        if (send_epg && last_eit_transmit.isElapsed( 1e3 * epg_interval) ) {
             SEND(p_eit_pf, sleep_time);
+            SEND(p_eit_sched, sleep_time);
             last_eit_transmit.update();
         }
 
@@ -381,6 +487,14 @@ protected:
             last_transfer_check.update();
         }
 
+        if (last_epg_update.isElapsed(1e6 * epg_update_interval)) {
+            update_pf_epg_content();
+        }
+
+        if (last_target_update.isElapsed(1e6 * target_update_interval)) {
+            reload_epg();
+        }
+
         sleeptime.tv_nsec = sleep_time;
         sleeptime.tv_sec = 0;
 
@@ -400,7 +514,8 @@ protected:
           break;
       }
     }       
-      
+      if (off) off.close();
+      sout.close();
       return Application::EXIT_OK;
   }
 	

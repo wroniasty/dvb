@@ -165,6 +165,8 @@ namespace epg {
            << " WHERE s.target_id = :id "
               ,soci::use(target_id, "id")
         );
+        
+        services.clear();
         Poco::DateTime now;
         for (soci::rowset<soci::row>::const_iterator it=rtrv_services.begin(); 
                 it!=rtrv_services.end(); ++it) {

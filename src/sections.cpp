@@ -87,7 +87,7 @@ namespace si {
     //_write_offset_0 = dest.position();
     dest.write (8, table_id);
     dest.write (1, section_syntax_indicator);
-    dest.write (3, 0xf);
+    dest.write (3, 0xfU);
     dest.write (12, section_length = calculate_section_length() );
   }
 
@@ -126,7 +126,11 @@ namespace si {
           dvb::mpeg::packet_p p ( new dvb::mpeg::packet );
           p->PID = pid; p->continuityCounter = ( cc++ % 16 );
           p->payloadSize = p->max_payload_size();
-          if (count++ == 0) { p->payload[0] = 0; p->PUSI = 1; }
+          if (count++ == 0) { 
+              p->payload[0] = 0; p->PUSI = 1; 
+          } else {
+              
+          }
           p->payloadSize = p->max_payload_size();
           p->copy_payload ( buffer + offset, 
                             std::min((unsigned) p->payloadSize, 

@@ -40,7 +40,7 @@ namespace si {
       dest.write (8, dvb::i2bcd(utc.hour()) );
       dest.write (8, dvb::i2bcd(utc.minute()) );
       dest.write (8, dvb::i2bcd(utc.second()) );
-      dest.write (4, 0xffff);
+      dest.write (4, 0xffU);
       std::size_t length_position = dest.position();
       dest.skip(12);
       dvb::util::position counter(dest);

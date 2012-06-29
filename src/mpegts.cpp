@@ -10,14 +10,21 @@
 namespace dvb {
 
   std::string string_encoding::encode(std::string charset, std::string buffer) {
-      return encoding_map[charset] + from_utf8(charset, buffer);
+      std::string enc("---");
+      //FIXME
+      enc[0] = 0x10;
+      enc[1] = 0x00;
+      enc[2] = 0x02;
+      
+      return /*encoding_map[charset]*/  enc + from_utf8(charset, buffer);
   }
 
   std::string string_encoding::encode(std::string buffer) {
       return encode("iso-8859-2", buffer);
   }
 
-  
+  //This isn't working because std::string won't accept char * with null
+  //bytes (DUH)
   map<std::string, std::string> string_encoding::encoding_map = 
           boost::assign::map_list_of 
           ("iso-8859-1", "\x10\x00\x01")
@@ -93,6 +100,7 @@ namespace dvb {
   }
     
   std::string from_utf8 (std::string to_charset, std::string s) {
+      to_charset += "//IGNORE";
       iconv_t cd = iconv_open ( to_charset.c_str(), "UTF8" );
       
       size_t _is, _os;      
@@ -307,7 +315,7 @@ namespace mpeg {
   }
 
   int packet::write(bits::bitstream & stream, std::size_t max_size) {
-    stream.write(8, 0x47);
+    stream.write(8, 0x47U);
     stream.write(1, TEI);
     stream.write(1, PUSI);
     stream.write(1, TP);

@@ -26,4 +26,5 @@ LIBS=['dvb', 'bits'
 ]
 
 env.Program('mpegts-xmit.cpp', LIBS=LIBS , LIBPATH='.')
+env.Program('mpegts-debug.cpp', LIBS=LIBS , LIBPATH='.')
 

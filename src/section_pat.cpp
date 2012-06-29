@@ -34,7 +34,7 @@ namespace si {
 
   void pat_section::write_contents (bits::bitstream & dest) {
       dest.write (16, transport_stream_id);
-      dest.write (2, 0x3);
+      dest.write (2, 0x3U);
       dest.write (5, version_number);
       dest.write (1, current_next_indicator);
       dest.write (8, section_number);
@@ -42,7 +42,7 @@ namespace si {
       /* size = 5 */
       for (programs_v::iterator it = programs.begin(); it != programs.end(); it++) {
           dest.write (16, (*it)->program_number);
-          dest.write (3, 0x7);
+          dest.write (3, 0x7U);
           dest.write (13, (*it)->program_map_pid);
       }
   }

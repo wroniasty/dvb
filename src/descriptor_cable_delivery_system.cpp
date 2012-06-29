@@ -19,7 +19,7 @@ namespace si {
   
   void cable_delivery_system_descriptor::write(descriptor & d, bits::bitstream & dest) {
         dest.write (32, dvb::i2bcd(frequency));
-        dest.write (12, 0xfff);
+        dest.write (12, 0xfffU);
         dest.write (4, FEC_outer);
         dest.write (8, modulation);
         dest.write (28, dvb::i2bcd(symbol_rate));

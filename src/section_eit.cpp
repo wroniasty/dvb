@@ -5,40 +5,48 @@ namespace dvb {
 
 namespace si {
    eit_section::event::event()
-    : event_id(0), running_status(1), free_CA_mode(1), descriptors_loop_length(0)           
+    : event_id(0), 
+           running_status(0), free_CA_mode(0),
+           descriptors_loop_length(0)           
    {}
    
    eit_section::event::event(unsigned _event_id, Poco::DateTime _start_time, 
          Poco::Timespan _duration, std::string language,
          std::string title, std::string short_text, std::string long_text)
     : event_id (_event_id), start_time(_start_time), duration(_duration),
-      running_status(1), free_CA_mode(1), descriptors_loop_length(0) {
+      running_status(0), free_CA_mode(0), descriptors_loop_length(0) 
+   {
 
       dvb::si::descriptor_p d_short ( new dvb::si::descriptor );
       Poco::SharedPtr<dvb::si::short_event_descriptor> d_short_data =
               d_short->set_data<dvb::si::short_event_descriptor> ();
       
       d_short_data->ISO_639_language_code = language;
-      d_short_data->event_name = title;
+      d_short_data->event_name =  title;
       d_short_data->text = short_text;
       descriptors.push_back(d_short);
 
       std::size_t offset = 0;
-      /*
-//      while (offset < long_text.size()) {
+      descriptors_v ext_desc_v;
+      unsigned descriptor_number=0;
+
+      while (offset < long_text.size()) {
           dvb::si::descriptor_p d_ext ( new dvb::si::descriptor );
           Poco::SharedPtr<dvb::si::extended_event_descriptor> d_ext_data =
               d_ext->set_data<dvb::si::extended_event_descriptor> ();
-          d_ext_data->descriptor_number = 0;
+          d_ext_data->descriptor_number = descriptor_number++;
           d_ext_data->last_descriptor_number = 0;
           d_ext_data->ISO_639_language_code = language;
-          d_ext_data->add_item("2012", "rok");
-          d_ext_data->add_item("sensacha", "rodzaj");
-          d_ext_data->text = dvb::string_encoding::encode("HELLO HELLO HELLO");
-          descriptors.push_back(d_ext);          
-//          offset += 253;
-//      }
-*/
+          d_ext_data->text = long_text.substr(offset, std::min(long_text.size(), offset+200) ) ;
+          ext_desc_v.push_back(d_ext);          
+          offset += 200;
+      }
+      BOOST_FOREACH (descriptor_p d, ext_desc_v) {
+          Poco::SharedPtr<dvb::si::extended_event_descriptor> d_ext_data =
+              d->get_data<dvb::si::extended_event_descriptor> ();
+          d_ext_data->last_descriptor_number = descriptor_number-1;
+          descriptors.push_back(d);
+      }
        
    }
    
@@ -87,13 +95,13 @@ namespace si {
       return l;      
   }
 
-  eit_section::eit_section() : section(),
-          segment_last_section_number(0),
-          service_id(0), version_number(0), current_next_indicator(0),
-          section_number(0), last_section_number(0), transport_stream_id(0),
-          original_network_id(0), 
-          last_table_id(0)
-  {
+  eit_section::eit_section() : section(),        
+        service_id(1), version_number(1), current_next_indicator(1),
+        section_number(0), last_section_number(0),
+        transport_stream_id(1), original_network_id(1),
+        segment_last_section_number(0), last_table_id(0x4e)
+     {
+      table_id = 0x4e;
       max_length = 4096; 
   }
 
@@ -125,7 +133,7 @@ namespace si {
   void eit_section::write_contents (bits::bitstream & dest) {
       dvb::util::position counter(dest);
       dest.write(16, service_id);
-      dest.write (2, 0xff);
+      dest.write (2, 0xffU);
       dest.write (5, version_number);
       dest.write (1, current_next_indicator);
       dest.write (8, section_number);
@@ -215,6 +223,8 @@ namespace si {
       present->section_number = 0;
       present->last_section_number = 1;
       present->original_network_id = original_network_id;
+      present->segment_last_section_number = 0;
+      present->transport_stream_id = transport_stream_id;
       if (present_event)
          present->add_event(present_event);
 
@@ -226,8 +236,10 @@ namespace si {
       following->current_next_indicator = current_next;
       following->section_syntax_indicator = 1;
       following->section_number = 1;
-      following->last_section_number = 1;
+      following->last_section_number = 1;      
       following->original_network_id = original_network_id;
+      following->transport_stream_id = transport_stream_id;
+      following->segment_last_section_number = 0;
       
       if (following_event)
         following->add_event ( following_event );
@@ -255,8 +267,20 @@ namespace si {
       
       std::sort ( events.begin(), events.end(), compare_event_p );
       
+      eit_section_p current_section ( new eit_section );      
+
+      current_section->table_id = 0x50;
+      current_section->last_table_id = 0x50;
+      current_section->service_id = service_id;
+      current_section->version_number = version_number;
+      current_section->current_next_indicator = current_next;
+      current_section->section_syntax_indicator = 1;
+      current_section->section_number = 0;
+      current_section->last_section_number = 0;
+      current_section->original_network_id = original_network_id;
+      current_section->segment_last_section_number = 0;
       
-      
+      sched.push_back (current_section);
       
       return sched;
    }
