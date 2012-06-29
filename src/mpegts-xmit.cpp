@@ -82,7 +82,7 @@ protected:
     unsigned pat_interval, time_interval, epg_interval, 
         epg_update_interval, target_update_interval;
 
-    std::string dumpfile;
+  std::string dumpfile, default_language;
     
     Poco::Timestamp now, 
               last_pat_transmit, 
@@ -177,6 +177,11 @@ protected:
                         .argument ( "seconds" )
 			.repeatable(false)
 			.binding("mpeg.epg-update-interval"));
+
+    options.addOption ( Option( "epg-language", "", "Default EPG language")
+                        .argument ( "code" )
+			.repeatable(false)
+			.binding("mpeg.epg-language"));
 
     options.addOption ( Option( "target-update-interval", "", "Interval between EPG content reloads from DB")
                         .argument ( "seconds" )
@@ -288,34 +293,41 @@ protected:
         sout << "{";
         BOOST_FOREACH ( dvb::epg::service_p svc, target.services) {
             pf = svc->present_following_event(now);
-            sout << svc->name << ":\"";
+	    std::string lang = default_language;
 	    if (pf[0]) {
-	      sout << pf[0]->info["pol"]->title;
+	      if (!pf[0]->info[lang]) {
+		if (pf[0]->info.size() == 0) continue;
+		lang = (*pf[0]->info.begin()).first;
+	      }
 	    }
-	    if (pf[1]) {
+	    bool has0 = pf[0] && pf[0]->info[lang];
+	    bool has1 = pf[1] && pf[1]->info[lang];
+            sout << svc->name << ":\"";
+	    if (has0) {
+	      sout << pf[0]->info[lang]->title;
+	    }
+	    if (has1) {
 	    }
 	    sout << "\"  ";
 	    //logger().information ( string("TSID: ")  + boost::lexical_cast<string> ( target.tsid ) );
             eit_pf = 
             dvb::si::eit_prepare_present_following (
                svc->sid, si_version, 1, target.tsid, target.origid,
-               ( pf[0] ?
+               ( has0 ?
                  dvb::si::eit_section::make_event (
                    pf[0]->id, pf[0]->start, pf[0]->duration,
-                   "pol", pf[0]->info["pol"]->title, pf[0]->info["pol"]->text, 
-                    pf[0]->info["pol"]->extended_text
+                   lang, pf[0]->info[lang]->title, pf[0]->info[lang]->text, 
+                    pf[0]->info[lang]->extended_text
                ) : 0 ),
-               ( pf[1] ? 
+               ( has1 ? 
                  dvb::si::eit_section::make_event (
                    pf[1]->id, pf[1]->start, pf[1]->duration,
-                   "pol", pf[1]->info["pol"]->title, pf[1]->info["pol"]->text, 
-                   pf[1]->info["pol"]->extended_text
+                   lang, pf[1]->info[lang]->title, pf[1]->info[lang]->text, 
+                   pf[1]->info[lang]->extended_text
                ) : 0)
             );
-            dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_pf, p_eit_pf);       
-            
-            
-            
+            dvb::si::serialize_to_mpegts<dvb::si::eit_section> (0x12, eit_pf, p_eit_pf);                   
+                        
             /* UPDATE SCHEDULE version_number !!! */            
             //dvb::si::eit_section::event_v sched; /* = svc->get_schedule(now, now); */            
             //eit_sched = dvb::si::eit_prepare_schedule(svc->sid, si_version, 1, target.tsid, 1, 
@@ -340,7 +352,7 @@ protected:
         p_eit_sched.clear();        
         sout << "{";
         BOOST_FOREACH ( dvb::epg::service_p svc, target.services) {
-            pf = svc->present_following_event(now);            
+	  //pf = svc->present_following_event(now);            
             dvb::si::eit_section::event_v sched; /* = svc->get_schedule(now, now); */            
             eit_sched = dvb::si::eit_prepare_schedule(svc->sid, si_version, 1, target.tsid, 1, 
                     sched);
@@ -374,7 +386,8 @@ protected:
       epg_interval = config().getInt("mpeg.epg-interval", 900 );
       epg_update_interval = config().getInt("mpeg.epg-update-interval", 60 );
       target_update_interval = config().getInt("mpeg.target-update-interval", 10*60 );
-
+      
+      default_language = config().getString ("mpeg.epg-language", "pol");
      
       if (send_pat) {
           logger().information( "+ PAT");
