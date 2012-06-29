@@ -290,10 +290,11 @@ protected:
             pf = svc->present_following_event(now);
             sout << svc->name << ":\"";
 	    if (pf[0]) {
-                sout << pf[0]->info["pol"]->title << "\"  "; 
+	      sout << pf[0]->info["pol"]->title;
 	    }
 	    if (pf[1]) {
 	    }
+	    sout << "\"  ";
 	    //logger().information ( string("TSID: ")  + boost::lexical_cast<string> ( target.tsid ) );
             eit_pf = 
             dvb::si::eit_prepare_present_following (
