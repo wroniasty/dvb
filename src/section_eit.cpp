@@ -320,7 +320,7 @@ namespace si {
       int offset = (subtable_id >= 0x60 ) ? (subtable_id - 0x60) : (subtable_id - 0x50);      
       t0 += Poco::Timespan(offset*2,0,0,0,0);
       
-      for (int segment_number=0; segment_number<16; segment_number++) {
+      for (int segment_number=0; segment_number<32; segment_number++) {
           t1 = t0 + segment_time_offset;
           
           //fetch events
@@ -362,7 +362,7 @@ namespace si {
                    << " " << (e->has_info() ? e->get_info()->title : "No info")
                    << endl;
                */
-                            
+                             
               if ((current_section->calculate_section_length() + eit_e->calculate_length() > 4092)) {
                   if (segment_sections.size() >= 8) break;
                   current_section.assign ( new eit_section );

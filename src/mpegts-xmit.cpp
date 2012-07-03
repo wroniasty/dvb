@@ -357,6 +357,7 @@ protected:
                     ) : 0)
                     );
             dvb::si::serialize_to_mpegts<dvb::si::eit_section > (0x12, eit_pf, p_eit_pf);
+            msg += " (" + boost::lexical_cast<string> (p_eit_pf.size()) + ")";
             logger().information(msg);
 
             /* UPDATE SCHEDULE version_number !!! */
@@ -372,11 +373,11 @@ protected:
             i = 1;
         } else {
             p_eit_sched.clear();
-
             BOOST_FOREACH(dvb::si::eit_section_p s, eit_sched) {
                 s->version_number = si_version;
             }
             dvb::si::serialize_to_mpegts<dvb::si::eit_section > (0x12, eit_sched, p_eit_sched);
+            logger().information ( string("Updated ") + boost::lexical_cast<string>(eit_sched.size()) + " sched sections." );
         }
     }
 
@@ -384,14 +385,17 @@ protected:
         TSID = target.tsid;
         p_eit_sched.clear();
         logger().information("Refreshing EPG schedule.");
-
+        eit_sched.clear();
+        
         BOOST_FOREACH(dvb::epg::service_p svc, target.services) {
             string msg = svc->name + " ";
-            eit_sched = dvb::si::eit_prepare_schedule(svc, Poco::DateTime(), epg_schedule_days, si_version, 1, target.tsid, 1);
-            msg += boost::lexical_cast<string > (eit_sched.size()) + " sections.";
-            dvb::si::serialize_to_mpegts<dvb::si::eit_section > (0x12, eit_sched, p_eit_sched);
+            dvb::si::eit_section_v svc_sched =
+                dvb::si::eit_prepare_schedule(svc, Poco::DateTime(), epg_schedule_days, si_version, 1, target.tsid, 1);
+            msg += boost::lexical_cast<string > (svc_sched.size()) + " sections. ";
             logger().information(msg);
-        }
+            eit_sched.insert ( eit_sched.end(), svc_sched.begin(), svc_sched.end() );
+        };
+        dvb::si::serialize_to_mpegts<dvb::si::eit_section > (0x12, eit_sched, p_eit_sched);
         last_epg_update.update();
     }
 
@@ -450,7 +454,9 @@ protected:
 
         unsigned target_pps = bitrate * 1024 / 8 / 188;
         unsigned long long sleep_time = 1e9 / target_pps;
-
+        
+        logger().information("Streaming...");
+        
         try {
             
             while (1) {
@@ -469,7 +475,9 @@ protected:
 
                 if (send_epg && last_eit_transmit.isElapsed(1e3 * epg_interval)) {
                     output.write(p_eit_pf, sleep_time);
+                    logger().debug(boost::lexical_cast<string> ( p_eit_pf.size() ) + " PF pkts." );
                     output.write(p_eit_sched, sleep_time);
+                    logger().debug(boost::lexical_cast<string> ( p_eit_sched.size() ) + " SCHED pkts." );
                     last_eit_transmit.update();
                 }
 

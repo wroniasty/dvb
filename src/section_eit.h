@@ -89,7 +89,7 @@ namespace si {
           eit_section::event_p present,
           eit_section::event_p following          
           );
-
+ 
   eit_section_v eit_prepare_schedule ( 
           dvb::epg::service_p service,
           Poco::DateTime now,
