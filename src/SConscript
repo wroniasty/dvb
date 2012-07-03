@@ -1,7 +1,8 @@
 Import ('env')
 
 sources = [
-'mpegts.cpp', 'descriptors.cpp', 'analyzer.cpp'
+'mpegts.cpp', 'io.cpp', 'storage.cpp'
+,'descriptors.cpp', 'analyzer.cpp'
 ,'epg.cpp'
 ,'descriptor_short_event.cpp'
 ,'descriptor_extended_event.cpp'

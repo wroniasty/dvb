@@ -2,6 +2,7 @@
 #define _DVB_SECTIONS_EIT_ 1
 
 #include "sections.h"
+#include "epg.h"
 
 namespace dvb {
 
@@ -90,12 +91,23 @@ namespace si {
           );
 
   eit_section_v eit_prepare_schedule ( 
-          unsigned service_id, 
+          dvb::epg::service_p service,
+          Poco::DateTime now,
+          int days_ahead,
           unsigned version_number, 
           unsigned current_next,
           unsigned transport_stream_id,
-          unsigned original_network_id,
-          eit_section::event_v events
+          unsigned original_network_id
+  );
+  
+  eit_section_v eit_prepare_schedule_subtable (
+          dvb::epg::service_p service,
+          Poco::DateTime now,
+          unsigned subtable_id,
+          unsigned version_number, 
+          unsigned current_next,
+          unsigned transport_stream_id,
+          unsigned original_network_id
   );
 
 }

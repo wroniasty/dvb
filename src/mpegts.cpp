@@ -9,6 +9,21 @@
 
 namespace dvb {
 
+  void nanosleep ( unsigned sec, long nano) {
+       struct timespec t, r;
+       t.tv_sec = sec;
+       t.tv_nsec = nano;
+       ::nanosleep(&t, &r);
+  }
+
+  void microsleep(unsigned long micro ) {
+      nanosleep ( micro / 1e6, micro * 1e3);
+  }
+
+  void millisleep( unsigned long milli ) {
+      nanosleep ( milli / 1e3, milli * 1e6);
+  }
+  
   std::string string_encoding::encode(std::string charset, std::string buffer) {
       std::string enc("---");
       //FIXME

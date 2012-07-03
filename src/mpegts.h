@@ -28,6 +28,11 @@
 using namespace std;
  
 namespace dvb {
+    
+  void nanosleep ( unsigned sec, long nano=0);
+  void microsleep( unsigned long micro );
+  void millisleep( unsigned long milli );
+  
   /* STRING OPERATIONS */
   std::string from_utf8 (std::string to_charset, std::string s);
   std::string to_utf8 (std::string from_charset, std::string s);

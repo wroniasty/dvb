@@ -21,6 +21,7 @@ namespace dvb {
 namespace epg {
 
     typedef struct {
+        std::string language;
         std::string title;
         std::string text;
         std::string extended_text;
@@ -40,7 +41,10 @@ namespace epg {
         std::map<std::string, event_info > info;
 
         event();
+        bool has_info() const;
+        bool has_info(const std::string language) const;
         event_info get_info ( const std::string language );
+        event_info get_info ();
         void delete_info ( const std::string language );
         
         bool operator== (const event & ev) const;

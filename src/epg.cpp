@@ -18,8 +18,21 @@ namespace epg {
     event::event_info event::get_info(const std::string language) {
         if (info.count(language) == 0) {
             info[language] = event_info ( new event_info_ );
+            info[language]->language = language;
         }
         return info[language];
+    }
+
+    bool event::has_info() const {
+        return !info.empty();
+    }
+
+    bool event::has_info(const std::string language) const {
+        return info.count(language) > 0;
+    }
+    
+    event::event_info event::get_info() {
+        return (*info.begin()).second;
     }
     
     void event::delete_info(const std::string language) {
@@ -56,7 +69,7 @@ namespace epg {
     schedule_t service::get_schedule(Poco::DateTime t0, Poco::DateTime t1) {
         schedule_t sched;
         BOOST_FOREACH(event_p ev, schedule) {
-            if (ev->start >= t0 && ev->start <= t1) {
+            if (ev->start >= t0 && ev->start < t1) {
                 sched.push_back( ev );
             }
         };        

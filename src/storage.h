@@ -2,13 +2,10 @@
 #define _DVB_STORAGE_ 1
 
 #include <string>
-#include <map>
-#include <list>
 
 #include "Poco/DateTime.h"
 #include "Poco/SharedPtr.h"
-
-#include "epg.h"
+#include "Poco/URI.h"
 
 #include <soci/soci-config.h>
 #include <soci/soci.h>
@@ -21,7 +18,7 @@ namespace dvb {
     
 namespace storage {
 
-    
+   Poco::SharedPtr<soci::session> get_session (string uri);
     
 }
 
