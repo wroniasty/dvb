@@ -82,16 +82,23 @@ protected:
 
     unsigned target_id, TSID, bitrate, si_version;
 
-    bool send_time, send_pat, send_epg;
+    bool send_time, send_pat, send_epg, 
+       send_other_sched, send_other_epg;
+ 
     unsigned pat_interval, time_interval, epg_interval,
-    epg_update_interval, target_update_interval, epg_schedule_days;
+       epg_update_interval, target_update_interval, 
+       epg_schedule_days, epg_schedule_interval,
+       epg_other_interval, epg_other_update_interval,
+       epg_other_schedule_days,
+       epg_other_schedule_interval,
+       other_target_update_interval;
 
     std::string default_language, diag_stream, database_uri;
 
     Poco::Timestamp now,
     last_pat_transmit,
     last_time_transmit, last_time_update,
-    last_eit_transmit,
+    last_eit_transmit, last_eit_sched_transmit,
     last_transfer_check,
     last_epg_update, last_target_update;
 
@@ -109,13 +116,25 @@ protected:
         send_pat = config().hasOption("mpeg.pat");
         send_epg = config().hasOption("mpeg.epg");
 
+        send_other_epg = config().hasOption("mpeg.other-epg");
+        send_other_sched = config().hasOption("mpeg.other-sched");
+
         pat_interval = config().getInt("mpeg.pat-interval", 1000);
         time_interval = config().getInt("mpeg.time-interval", 900);
-        epg_interval = config().getInt("mpeg.epg-interval", 900);
+        epg_interval = config().getInt("mpeg.epg-interval", 500);
         epg_update_interval = config().getInt("mpeg.epg-update-interval", 60);
         epg_schedule_days = config().getInt("mpeg.epg-sched-days", 8);
+        epg_schedule_interval = config().getInt("mpeg.epg-schedule-interval", 5000);
         target_update_interval = config().getInt("mpeg.target-update-interval", 10 * 60);
 
+        /* other TS - not used yet */
+        epg_other_interval = config().getInt("mpeg.epg-interval", 900);
+        epg_other_update_interval = config().getInt("mpeg.epg-update-interval", 60);
+        epg_other_schedule_days = config().getInt("mpeg.epg-sched-days", 2);
+        epg_other_schedule_interval = config().getInt("mpeg.epg-schedule-interval", 10000);
+        other_target_update_interval = config().getInt("mpeg.target-update-interval", 25 * 60);
+        /***************************/
+        
         default_language = config().getString("mpeg.epg-language", "pol");
         diag_stream = config().getString("diag.stream", "/dev/stdout");
 
@@ -197,6 +216,11 @@ protected:
                 .argument("ms")
                 .repeatable(false)
                 .binding("mpeg.epg-interval"));
+
+        options.addOption(Option("epg-sched-interval", "", "Interval between EIT schedule transmits (ms)")
+                .argument("ms")
+                .repeatable(false)
+                .binding("mpeg.epg-schedule-interval"));
 
         options.addOption(Option("epg-update-interval", "", "Interval between EPG content updates")
                 .argument("seconds")
@@ -473,12 +497,17 @@ protected:
                     last_time_transmit.update();
                 }
 
-                if (send_epg && last_eit_transmit.isElapsed(1e3 * epg_interval)) {
-                    output.write(p_eit_pf, sleep_time);
-                    logger().debug(boost::lexical_cast<string> ( p_eit_pf.size() ) + " PF pkts." );
-                    output.write(p_eit_sched, sleep_time);
-                    logger().debug(boost::lexical_cast<string> ( p_eit_sched.size() ) + " SCHED pkts." );
-                    last_eit_transmit.update();
+                if (send_epg) {
+                    if (last_eit_transmit.isElapsed(1e3 * epg_interval)) {
+                       output.write(p_eit_pf, sleep_time);
+                       logger().debug(boost::lexical_cast<string> ( p_eit_pf.size() ) + " PF pkts." );
+                       last_eit_transmit.update();
+                    }
+                    if (last_eit_sched_transmit.isElapsed(1e3 * epg_schedule_interval)) {
+                       output.write(p_eit_sched, sleep_time);
+                       logger().debug(boost::lexical_cast<string> ( p_eit_sched.size() ) + " SCHED pkts." );
+                       last_eit_sched_transmit.update();
+                    }
                 }
 
                 if (last_time_update.isElapsed(1e6)) {
@@ -488,7 +517,6 @@ protected:
                     p_tot = tot.serialize_to_mpegts(0x14);
                     last_time_update.update();
                 }
-
 #define BITRATE_CHECK_INTERVAL 3
 
                 if (last_transfer_check.isElapsed(BITRATE_CHECK_INTERVAL * 1e6)) {
