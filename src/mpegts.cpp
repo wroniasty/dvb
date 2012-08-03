@@ -13,7 +13,11 @@ namespace dvb {
        struct timespec t, r;
        t.tv_sec = sec;
        t.tv_nsec = nano;
-       ::nanosleep(&t, &r);
+       while (1) {
+	 int rval = ::nanosleep(&t, &r);
+	 if (rval == EINTR) { t = r; continue; }
+	 break;
+       }
   }
 
   void microsleep(unsigned long micro ) {

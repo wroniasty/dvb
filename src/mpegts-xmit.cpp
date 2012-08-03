@@ -480,7 +480,13 @@ protected:
         unsigned long long sleep_time = 1e9 / target_pps;
         
         logger().information("Streaming...");
-        
+
+	//	dvb::nanosleep (1, 0);
+	last_pat_transmit.update();
+	last_time_transmit.update();
+	last_eit_transmit.update();
+	last_transfer_check.update();
+
         try {
             
             while (1) {
@@ -521,6 +527,7 @@ protected:
 
                 if (last_transfer_check.isElapsed(BITRATE_CHECK_INTERVAL * 1e6)) {
                     unsigned pps = output.counter() / (last_transfer_check.elapsed() / 1e6);
+		    logger().information( boost::lexical_cast<string> ( pps ) + " pps" );
                     float offset = (float) pps / (float) target_pps;
                     sleep_time = sleep_time * offset;
                     output.counter_reset();
