@@ -466,9 +466,36 @@ protected:
         }
 
         if (send_time) {
+	  /*
+European Summer Time begins (clocks go forward) at 01:00 UTC on
+
+    31 March 2013
+    30 March 2014
+    29 March 2015
+    27 March 2016
+    26 March 2017
+
+Formula used to calculate the beginning of European Summer Time:
+
+Sunday (31 − ((((5 × y) ÷ 4) + 4) mod 7)) March at 01:00 GMT
+
+(valid until 2099[4]), where y is the year, and for the nonnegative a, a mod b is the remainder of division after truncating both operands to an integer.
+
+European Summer Time ends (clocks go backward) at 01:00 GMT on
+
+    27 October 2013
+    26 October 2014
+    25 October 2015
+    30 October 2016
+    29 October 2017
+
+    Formula used to calculate the end of European Summer Time:
+
+    Sunday (31 − ((((5 × y) ÷ 4) + 1) mod 7)) October at 01:00 GMT
+	   */
             logger().information("Sending TDT/TOT");
             logger().information("Time offset is +02:00");
-            tot.add_offset("POL", 0, 0, 0x0200, (unsigned long long) dvb::MJD(2012, 10, 01) * 0x1000000 + 0x033000, 0x0100);
+            tot.add_offset("POL", 0, 0, 0x0200, (unsigned long long) dvb::MJD(2013, 10, 27) * 0x1000000 + 0x010000, 0x0100);
         }
 
         if (send_epg) {
@@ -478,6 +505,7 @@ protected:
 
         unsigned target_pps = bitrate * 1024 / 8 / 188;
         unsigned long long sleep_time = 1e9 / target_pps;
+	unsigned long long min_sleep_time = sleep_time / 3;
         
         logger().information("Streaming...");
 
@@ -527,9 +555,10 @@ protected:
 
                 if (last_transfer_check.isElapsed(BITRATE_CHECK_INTERVAL * 1e6)) {
                     unsigned pps = output.counter() / (last_transfer_check.elapsed() / 1e6);
-		    logger().information( boost::lexical_cast<string> ( pps ) + " pps" );
-                    float offset = (float) pps / (float) target_pps;
+                    float offset = ((float) pps / (float) target_pps);
                     sleep_time = sleep_time * offset;
+		    if (sleep_time < min_sleep_time) sleep_time = min_sleep_time;
+                    logger().information(boost::lexical_cast<string> ( pps ) + " pps " + boost::lexical_cast<string> ( sleep_time ) );
                     output.counter_reset();
                     last_transfer_check.update();
                 }
