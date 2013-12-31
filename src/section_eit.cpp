@@ -39,9 +39,9 @@ namespace si {
           d_ext_data->descriptor_number = descriptor_number++;
           d_ext_data->last_descriptor_number = 0;
           d_ext_data->ISO_639_language_code = language;
-          d_ext_data->text = long_text.substr(offset, std::min(long_text.size(), offset+200) ) ;
+          d_ext_data->text = long_text.substr(offset, std::min(long_text.size(), offset+224) ) ;
           ext_desc_v.push_back(d_ext);          
-          offset += 200;
+          offset += 224;
       }
       BOOST_FOREACH (descriptor_p d, ext_desc_v) {
           Poco::SharedPtr<dvb::si::extended_event_descriptor> d_ext_data =

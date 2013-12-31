@@ -128,10 +128,11 @@ namespace epg {
         }
 
         soci::rowset<soci::row> descriptions = (sql.prepare << 
-              "SELECT e.event_id, d.* " 
+              "SELECT e.event_id, d.*, substr(coalesce(ext.text, '-'), 0, 224) as extended_text " 
            << "FROM eit_collected_event e INNER JOIN eit_collected_event_description d "
            << "ON e.id = d.collected_event_id "
-           << "WHERE e.service_description_id = :id "
+   	   << "LEFT JOIN eit_collected_event_description ext ON (ext.collected_event_id = e.id AND ext.extended) "
+           << "WHERE e.service_description_id = :id AND NOT d.extended "
            << "AND e.end_time >= :now AND e.start_time < :now ::timestamp + interval '3 days' ORDER BY e.start_time "
               , soci::use(tm_now, "now"), soci::use(service_description_id, "id")
         );
@@ -144,11 +145,13 @@ namespace epg {
           try {
             string name = (*it).get<string> ("name"), 
                    text = (*it).get<string> ("text"),
+	           extended_text = (*it).get<string> ("extended_text"),
                    lang = (*it).get<string> ("language_code"); 
             if (lang.size() != 3) continue;
             event::event_info info = e->get_info(lang);
             info->title = name;
             info->text = text;
+	    info->extended_text = extended_text;
           } catch ( const soci::soci_error & e) {
               continue;
           }

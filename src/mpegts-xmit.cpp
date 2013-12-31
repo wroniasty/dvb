@@ -392,17 +392,21 @@ protected:
 
         }
         last_epg_update.update();
+	
         if (++i % 20 == 1) {
-            update_sched_epg_content();
+	    update_sched_epg_content();
             i = 1;
         } else {
             p_eit_sched.clear();
+	    
             BOOST_FOREACH(dvb::si::eit_section_p s, eit_sched) {
                 s->version_number = si_version;
             }
             dvb::si::serialize_to_mpegts<dvb::si::eit_section > (0x12, eit_sched, p_eit_sched);
             logger().information ( string("Updated ") + boost::lexical_cast<string>(eit_sched.size()) + " sched sections." );
+	    
         }
+	
     }
 
     void update_sched_epg_content() {
@@ -494,8 +498,8 @@ European Summer Time ends (clocks go backward) at 01:00 GMT on
     Sunday (31 − ((((5 × y) ÷ 4) + 1) mod 7)) October at 01:00 GMT
 	   */
             logger().information("Sending TDT/TOT");
-            logger().information("Time offset is +02:00");
-            tot.add_offset("POL", 0, 0, 0x0200, (unsigned long long) dvb::MJD(2013, 10, 27) * 0x1000000 + 0x010000, 0x0100);
+            logger().information("Time offset is +01:00");
+            tot.add_offset("POL", 0, 0, 0x0100, (unsigned long long) dvb::MJD(2014, 3, 30) * 0x1000000 + 0x010000, 0x0100);
         }
 
         if (send_epg) {
