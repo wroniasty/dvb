@@ -366,7 +366,7 @@ protected:
 
             eit_pf =
                     dvb::si::eit_prepare_present_following(
-                    svc->sid, si_version, 1, target.tsid, target.origid,
+                    svc->sid, si_version, 1, svc->tsid, target.origid,
                     (has0 ?
                     dvb::si::eit_section::make_event(
                     pf[0]->id, pf[0]->start, pf[0]->duration,
@@ -418,7 +418,7 @@ protected:
         BOOST_FOREACH(dvb::epg::service_p svc, target.services) {
             string msg = svc->name + " ";
             dvb::si::eit_section_v svc_sched =
-                dvb::si::eit_prepare_schedule(svc, Poco::DateTime(), epg_schedule_days, si_version, 1, target.tsid, 1);
+                dvb::si::eit_prepare_schedule(svc, Poco::DateTime(), epg_schedule_days, si_version, 1, svc->tsid, 1);
             msg += boost::lexical_cast<string > (svc_sched.size()) + " sections. ";
             logger().information(msg);
             eit_sched.insert ( eit_sched.end(), svc_sched.begin(), svc_sched.end() );
