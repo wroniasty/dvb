@@ -190,12 +190,9 @@ namespace epg {
             int sd_service_id = (*it).get<int> ( "sd_service_id", 0);
             if (!service_id) service_id = sd_service_id;
             int service_description_id = (*it).get<int> ( "service_description_id", 0);
-	    int service_tsid = (*it).get<int> ( "other_transport_stream", 0);
-	    service_tsid = service_tsid == 0 ? tsid : service_tsid;
 
             string name = (*it).get<string> ("name", "UNKNOWN");
             service_p svc ( new service ( service_id, name) );
-	    svc->tsid = service_tsid;
             svc->reload_epg(sql, service_description_id, now);
             services.push_back(svc);
         }        

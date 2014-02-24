@@ -26,7 +26,6 @@ namespace epg {
         std::string text;
         std::string extended_text;
         std::map<std::string, std::string> items;
-	int transport_stream;
     } event_info_;
         
     class event {
@@ -68,7 +67,6 @@ namespace epg {
     public:
         unsigned id;
         unsigned sid;
-	unsigned tsid;
         std::string name;
                      
         service(unsigned _sid=0, std::string _name = "");
