@@ -174,13 +174,17 @@ namespace epg {
                 soci::use (target_id), soci::into(target);
 
         tsid = target.get<int> ( "tsid", 1);
-        origid = 1;     
-        soci::rowset<soci::row> rtrv_services = (sql.prepare << 
+
+	int template_id = target.get<int> ( "service_template_target", 0);
+	int service_target_id = (template_id > 0) ? template_id : target_id;
+        origid = target.get<int> ("original_network_id", 0);
+   	soci::rowset<soci::row> rtrv_services = (sql.prepare << 
               " SELECT s.*, sd.name, sd.service_id as sd_service_id  " 
-           << " FROM si_target_service s INNER JOIN si_service_description sd ON sd.id = s.service_description_id "
+  	   << " FROM si_target_service s INNER JOIN si_service_description sd ON sd.id = s.service_description_id "
            << " WHERE s.target_id = :id "
-              ,soci::use(target_id, "id")
+              , soci::use(service_target_id, "id")
         );
+
         
         services.clear();
         Poco::DateTime now;
@@ -188,11 +192,15 @@ namespace epg {
                 it!=rtrv_services.end(); ++it) {
             int service_id = (*it).get<int> ( "service_id", 0);
             int sd_service_id = (*it).get<int> ( "sd_service_id", 0);
+            int original_network_id = (*it).get<int> ("original_network_id", 0);
+	    if (!original_network_id) original_network_id = origid;	
             if (!service_id) service_id = sd_service_id;
-            int service_description_id = (*it).get<int> ( "service_description_id", 0);
+            int service_description_id = (*it).get<int> ( "service_description_id", 0);	    
 
             string name = (*it).get<string> ("name", "UNKNOWN");
             service_p svc ( new service ( service_id, name) );
+	    svc->transport_stream_id = (*it).get<int> ("other_transport_stream", tsid);
+            svc->original_network_id = original_network_id;
             svc->reload_epg(sql, service_description_id, now);
             services.push_back(svc);
         }        

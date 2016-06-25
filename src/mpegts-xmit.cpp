@@ -119,7 +119,7 @@ protected:
         send_other_epg = config().hasOption("mpeg.other-epg");
         send_other_sched = config().hasOption("mpeg.other-sched");
 
-        pat_interval = config().getInt("mpeg.pat-interval", 1000);
+        pat_interval = config().getInt("mpeg.pat-interval", 100);
         time_interval = config().getInt("mpeg.time-interval", 900);
         epg_interval = config().getInt("mpeg.epg-interval", 500);
         epg_update_interval = config().getInt("mpeg.epg-update-interval", 60);
@@ -327,9 +327,15 @@ protected:
 
         sout << "EPG services: ";
 
+	pat.programs.clear();
+	pat.add_program(0, 0x10); /* network */
+        int pmt_pid = 2000;   /* something for now */
         BOOST_FOREACH(dvb::epg::service_p svc, target.services) {
             sout << svc->name << "(" << svc->sid << ") ";
+	    pat.add_program(svc->sid, pmt_pid++);
         }
+	p_pat = pat.serialize_to_mpegts(0x00);
+
         logger().information(sout.str());
 
         last_target_update.update();
@@ -366,7 +372,7 @@ protected:
 
             eit_pf =
                     dvb::si::eit_prepare_present_following(
-                    svc->sid, si_version, 1, target.tsid, target.origid,
+ 		    svc->sid, si_version, 1, target.tsid, svc->transport_stream_id, svc->original_network_id,
                     (has0 ?
                     dvb::si::eit_section::make_event(
                     pf[0]->id, pf[0]->start, pf[0]->duration,
@@ -416,9 +422,11 @@ protected:
         eit_sched.clear();
         
         BOOST_FOREACH(dvb::epg::service_p svc, target.services) {
+	  /* only send schedule for actual transport stream */
+	  if (svc->transport_stream_id != TSID && target.origid == 0) continue;
             string msg = svc->name + " ";
             dvb::si::eit_section_v svc_sched =
-                dvb::si::eit_prepare_schedule(svc, Poco::DateTime(), epg_schedule_days, si_version, 1, target.tsid, 1);
+                dvb::si::eit_prepare_schedule(svc, Poco::DateTime(), epg_schedule_days, si_version, 1, /*target.tsid*/ svc->transport_stream_id, svc->original_network_id);
             msg += boost::lexical_cast<string > (svc_sched.size()) + " sections. ";
             logger().information(msg);
             eit_sched.insert ( eit_sched.end(), svc_sched.begin(), svc_sched.end() );
@@ -498,8 +506,8 @@ European Summer Time ends (clocks go backward) at 01:00 GMT on
     Sunday (31 − ((((5 × y) ÷ 4) + 1) mod 7)) October at 01:00 GMT
 	   */
             logger().information("Sending TDT/TOT");
-            logger().information("Time offset is +01:00");
-            tot.add_offset("POL", 0, 0, 0x0100, (unsigned long long) dvb::MJD(2014, 3, 30) * 0x1000000 + 0x010000, 0x0100);
+            logger().information("Time offset is +02:00");
+            tot.add_offset("POL", 0, 0, 0x0200, (unsigned long long) dvb::MJD(2016, 10, 30) * 0x1000000 + 0x010000, 0x0100);
         }
 
         if (send_epg) {
@@ -523,7 +531,7 @@ European Summer Time ends (clocks go backward) at 01:00 GMT on
             
             while (1) {
                 now.update();
-
+		
                 if (send_pat && last_pat_transmit.isElapsed(1e3 * pat_interval)) {
                     output.write(p_pat, sleep_time);
                     last_pat_transmit.update();
@@ -536,14 +544,14 @@ European Summer Time ends (clocks go backward) at 01:00 GMT on
                 }
 
                 if (send_epg) {
-                    if (last_eit_transmit.isElapsed(1e3 * epg_interval)) {
+		  //if (last_eit_transmit.isElapsed(1e3 * epg_interval)) {
                        output.write(p_eit_pf, sleep_time);
-                       logger().debug(boost::lexical_cast<string> ( p_eit_pf.size() ) + " PF pkts." );
+                       //logger().information(boost::lexical_cast<string> ( p_eit_pf.size() ) + " PF pkts." );
                        last_eit_transmit.update();
-                    }
+		       //  }
                     if (last_eit_sched_transmit.isElapsed(1e3 * epg_schedule_interval)) {
                        output.write(p_eit_sched, sleep_time);
-                       logger().debug(boost::lexical_cast<string> ( p_eit_sched.size() ) + " SCHED pkts." );
+                       logger().information(boost::lexical_cast<string> ( p_eit_sched.size() ) + " SCHED pkts." );
                        last_eit_sched_transmit.update();
                     }
                 }
@@ -558,9 +566,12 @@ European Summer Time ends (clocks go backward) at 01:00 GMT on
 #define BITRATE_CHECK_INTERVAL 3
 
                 if (last_transfer_check.isElapsed(BITRATE_CHECK_INTERVAL * 1e6)) {
+
+		    //target_pps = (p_eit_sched.size() + 10) / 30;   /* everything is sent within 30 seconds */
                     unsigned pps = output.counter() / (last_transfer_check.elapsed() / 1e6);
                     float offset = ((float) pps / (float) target_pps);
                     sleep_time = sleep_time * offset;
+
 		    if (sleep_time < min_sleep_time) sleep_time = min_sleep_time;
                     logger().information(boost::lexical_cast<string> ( pps ) + " pps " + boost::lexical_cast<string> ( sleep_time ) );
                     output.counter_reset();
@@ -575,9 +586,7 @@ European Summer Time ends (clocks go backward) at 01:00 GMT on
                     reload_epg();
                 }
 
-                output.write_null(sleep_time);
-
-
+                //output.write_null(sleep_time);		
 
             } /* while(1) */
 

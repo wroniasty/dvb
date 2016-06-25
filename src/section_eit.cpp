@@ -208,16 +208,18 @@ namespace si {
           unsigned version_number, 
           unsigned current_next,
           unsigned transport_stream_id,
+	  unsigned service_transport_stream_id,
           unsigned original_network_id,
           eit_section::event_p present_event,
           eit_section::event_p following_event          
           ) 
    {
       eit_section_v pf;
-      
+      int table_id = (transport_stream_id == service_transport_stream_id) ? 0x4e : 0x4f;
+
       eit_section_p present ( new eit_section );      
-      present->table_id = 0x4e;
-      present->last_table_id = 0x4e;
+      present->table_id = table_id;
+      present->last_table_id = table_id;
       present->service_id = service_id;
       present->version_number = version_number;
       present->current_next_indicator = current_next;
@@ -226,13 +228,13 @@ namespace si {
       present->last_section_number = 1;
       present->original_network_id = original_network_id;
       present->segment_last_section_number = 0;
-      present->transport_stream_id = transport_stream_id;
+      present->transport_stream_id = service_transport_stream_id;
       if (present_event)
          present->add_event(present_event);
 
       eit_section_p following ( new eit_section );      
-      following->table_id = 0x4e;
-      following->last_table_id = 0x4e;
+      following->table_id = table_id;
+      following->last_table_id = table_id;
       following->service_id = service_id;
       following->version_number = version_number;
       following->current_next_indicator = current_next;
@@ -240,7 +242,7 @@ namespace si {
       following->section_number = 1;
       following->last_section_number = 1;      
       following->original_network_id = original_network_id;
-      following->transport_stream_id = transport_stream_id;
+      following->transport_stream_id = service_transport_stream_id;
       following->segment_last_section_number = 0;
       
       if (following_event)

@@ -85,6 +85,7 @@ namespace si {
           unsigned version_number, 
           unsigned current_next,
           unsigned transport_stream_id,
+	  unsigned service_transport_stream_id,
           unsigned original_network_id,
           eit_section::event_p present,
           eit_section::event_p following          

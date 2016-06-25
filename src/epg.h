@@ -67,6 +67,8 @@ namespace epg {
     public:
         unsigned id;
         unsigned sid;
+	unsigned transport_stream_id;
+	unsigned original_network_id;
         std::string name;
                      
         service(unsigned _sid=0, std::string _name = "");
